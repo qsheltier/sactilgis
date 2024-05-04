@@ -16,6 +16,13 @@ import org.tmatesoft.svn.core.io.SVNRepositoryFactory
 class RepositoryScannerTest {
 
 	@Test
+	fun `repository scanner returns latest revision of repository`() {
+		createTwoSimpleRepositories()
+		val repositoryInformation = repositoryScanner.identifyBranches()
+		assertThat(repositoryInformation.latestRevision, equalTo(4))
+	}
+
+	@Test
 	fun `repository scanner identifies branch correctly`() {
 		createTwoSimpleRepositories()
 		repositoryScanner.addBranch("p1", 0L to "/project1")
