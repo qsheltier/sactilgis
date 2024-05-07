@@ -2,10 +2,9 @@ package de.qsheltier.utils.svn
 
 import java.util.SortedSet
 import java.util.TreeSet
-import org.tmatesoft.svn.core.SVNURL
-import org.tmatesoft.svn.core.io.SVNRepositoryFactory
+import org.tmatesoft.svn.core.io.SVNRepository
 
-class RepositoryScanner(svnUrl: SVNURL) {
+class RepositoryScanner(private val svnRepository: SVNRepository) {
 
 	fun addBranch(name: String, branchDefinition: BranchDefinition) {
 		branchDefinitions[name] = branchDefinition
@@ -57,8 +56,7 @@ class RepositoryScanner(svnUrl: SVNURL) {
 	private fun findPathForBranchAtRevision(branch: String, revision: Long): String? =
 		branchDefinitions[branch]!!.pathAt(revision)
 
-	private val simpleSvn = SimpleSVN(svnUrl)
-	private val svnRepository = SVNRepositoryFactory.create(svnUrl)
+	private val simpleSvn = SimpleSVN(svnRepository)
 
 	private val branchDefinitions = mutableMapOf<String, BranchDefinition>()
 
