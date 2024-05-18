@@ -7,6 +7,9 @@ import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
 import java.io.File
+import java.util.logging.FileHandler
+import java.util.logging.Logger
+import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.PersonIdent
 import org.eclipse.jgit.lib.Ref
@@ -41,6 +44,7 @@ fun main(vararg arguments: String) {
 	val repositoryScanner = RepositoryScanner(svnRepository)
 	branchDefinitions.forEach(repositoryScanner::addBranch)
 	val repositoryInformation = repositoryScanner.identifyBranches()
+	logger.info("RepositoryInformation: $repositoryInformation")
 
 	val committers = configuration.committers
 		.associate { it.subversionId to PersonIdent(it.name, it.email) }
@@ -92,7 +96,8 @@ fun main(vararg arguments: String) {
 		svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
 
 		var processedRevisionCount = 0
-		worklist.createPlan().forEach { (branch, revision) ->
+		worklist.createPlan().also { logger.info("Plan: $it") }.forEach { (branch, revision) ->
+			logger.info("Processing $branch at Revision $revision")
 			print("${"%tT.%<tL".format(System.currentTimeMillis())} (@$revision)($branch)")
 			val svnRevision = SVNRevision.create(revision)
 			if (currentBranch != branch) {
@@ -123,6 +128,7 @@ fun main(vararg arguments: String) {
 						.filterNot { it.file == File(workDirectory, ".git") }
 						.filterNot { it.contentsStatus == STATUS_NORMAL }
 						.map(SVNStatus::getFile)
+						.also { filesToDelete -> logger.info("Files to clean up: $filesToDelete") }
 						.forEach(File::deleteRecursively)
 				}
 			}
@@ -142,7 +148,7 @@ fun main(vararg arguments: String) {
 				gitRepository.status().call().let { status ->
 					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.untrackedFolders + status.ignoredNotInIndex
 				}.filterNot { it.startsWith(".svn") }
-			}
+			}.also { logger.info("Files to update in Git: $it") }
 			filePatterns.takeIf { it.isNotEmpty() }?.let {
 				printTime("add") {
 					gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
@@ -205,3 +211,8 @@ private fun Git.branchDoesNotExist(branch: String) =
 	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
 
 private val xmlMapper = XmlMapper()
+private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {
+	System.setProperty("java.util.logging.SimpleFormatter.format", "%tF %<tT %5\$s%n")
+	addHandler(FileHandler("./sactilgis.log").apply { this.formatter = SimpleFormatter() })
+	useParentHandlers = false
+}
