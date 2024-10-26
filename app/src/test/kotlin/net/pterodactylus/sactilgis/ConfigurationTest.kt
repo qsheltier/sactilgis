@@ -7,6 +7,7 @@ import net.pterodactylus.sactilgis.Configuration.Branch.Origin
 import net.pterodactylus.sactilgis.Configuration.Branch.RevisionPath
 import net.pterodactylus.sactilgis.Configuration.Branch.Tag
 import net.pterodactylus.sactilgis.Configuration.Committer
+import net.pterodactylus.sactilgis.Configuration.Filter
 import net.pterodactylus.sactilgis.Configuration.General
 import net.pterodactylus.sactilgis.Configuration.SubversionAuth
 import org.hamcrest.MatcherAssert.assertThat
@@ -178,6 +179,18 @@ class ConfigurationTest {
 				Committer("d", "D D", "d@d"),
 			)
 		)
+	}
+
+	@Test
+	fun `merged configuration contains all filters`() {
+		val firstConfiguration = Configuration().apply {
+			filters += Filter("foo")
+		}
+		val secondConfiguration = Configuration().apply {
+			filters += Filter("bar")
+		}
+		val mergedConfiguration = firstConfiguration.merge(secondConfiguration)
+		assertThat(mergedConfiguration.filters, containsInAnyOrder(Filter("foo"), Filter("bar")))
 	}
 
 	@Test
