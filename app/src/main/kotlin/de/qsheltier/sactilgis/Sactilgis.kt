@@ -184,8 +184,11 @@ fun main(vararg arguments: String) {
 						"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 				val commitAuthor = committers.getValue(logEntry.author)
 				mergeRevisionsByBranch[branch]!![revision]?.let { merge ->
-					print("(merge ${merge.tag ?: "${merge.branch} @ ${merge.revision}"})")
-					val commitId = revisionCommits[merge.tag?.let { findActualRevision(it)!! to branchRevisionsByTag[it]!!.first } ?: (findActualRevision(merge.branch!!, merge.revision) to merge.branch!!)]!!
+					val commitId: RevCommit = (merge.tag?.let { branchRevisionsByTag[it]!! }
+						?: run { merge.branch!! to merge.revision })
+						.let { (branch, revision) -> branch to findActualRevision(branch, revision) }
+						.also { (branch, revision) -> print("(merge $branch @ $revision)") }
+						.let { (branch, revision) -> revisionCommits[revision to branch]!! }
 					gitRepository.repository.writeMergeHeads(listOf(commitId))
 				}
 				val commit = gitRepository.commit()
