@@ -12,6 +12,7 @@ import java.util.logging.FileHandler
 import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.PersonIdent
 import org.eclipse.jgit.lib.Ref
 import org.eclipse.jgit.lib.Repository
@@ -83,21 +84,32 @@ fun main(vararg arguments: String) {
 	)
 
 	val workDirectory = File(configuration.general.targetDirectory ?: throw IllegalStateException("No target directory given."))
-	workDirectory.deleteRecursively()
-	workDirectory.mkdirs()
-	Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch("main").call().use { gitRepository ->
+	val simpleSvn = SimpleSVN(svnRepository)
+	val svnClientManager = SVNClientManager.newInstance()
+	svnClientManager.setAuthenticationManager(svnRepository.authenticationManager)
+	try {
+		Git.open(workDirectory).also {
+			printTime("cleanup") {
+				svnClientManager.wcClient.doCleanup(workDirectory, true, true, true, false, true, false)
+			}
+		}
+	} catch (e: RepositoryNotFoundException) {
+		/* no existing repo found, creating new one. */
+		workDirectory.deleteRecursively()
+		workDirectory.mkdirs()
+		printTime("update") {
+			svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
+		}
+		Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch("main").call()
+	}.use { gitRepository ->
 		if (configuration.general.ignoreGlobalGitIgnoreFile != false) {
 			gitRepository.repository.config.setString("core", null, "excludesFile", if (Platform.isWindows()) "NUL" else "/dev/null")
 		}
-		val simpleSvn = SimpleSVN(svnRepository)
-		val svnClientManager = SVNClientManager.newInstance()
-		svnClientManager.setAuthenticationManager(svnRepository.authenticationManager)
 		val stateDirectory = File(workDirectory, ".git/sactilgis")
 		stateDirectory.mkdirs()
 		val revisionCommits = readCacheFromStateDir(stateDirectory, gitRepository.repository).toMutableMap()
 		var currentBranch = gitRepository.repository.branch
 		var currentPath = "/"
-		svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
 
 		var processedRevisionCount = 0
 		val plan = worklist.createPlan()
