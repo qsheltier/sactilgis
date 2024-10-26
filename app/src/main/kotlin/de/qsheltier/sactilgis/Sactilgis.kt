@@ -62,7 +62,7 @@ fun main(vararg arguments: String) {
 
 	fun findBranchByPathAndRevision(path: String, revision: Long) =
 		branchDefinitions.entries.single { entry ->
-			(entry.value.pathAt(revision) == path) || entry.value.pathAt(revision)?.startsWith("$path/") ?: false
+			(entry.value.pathAt(revision) == path) || entry.value.pathAt(revision)?.startsWith("$path/") ?: false || (entry.value.pathAt(revision)?.let { path.startsWith(it) } ?: false)
 		}.key
 
 	val mergeRevisionsByBranch = configuration.branches.associate { it.name to it.merges.associateBy { it.revision } }
