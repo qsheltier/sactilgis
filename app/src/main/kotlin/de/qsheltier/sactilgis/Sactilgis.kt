@@ -3,6 +3,7 @@ package de.qsheltier.sactilgis
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Branch
+import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
@@ -47,6 +48,7 @@ fun main(vararg arguments: String) {
 	val repositoryScanner = RepositoryScanner(svnRepository)
 	branchDefinitions.forEach(repositoryScanner::addBranch)
 	val repositoryInformation = repositoryScanner.identifyBranches()
+	val fileFilters = configuration.filters.map(Filter::path).map(::Regex).map { regex -> { file: String -> regex.containsMatchIn(file) } }
 	logger.info("RepositoryInformation: $repositoryInformation")
 
 	val committers = configuration.committers
@@ -168,6 +170,7 @@ fun main(vararg arguments: String) {
 				gitRepository.status().call().let { status ->
 					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.untrackedFolders + status.ignoredNotInIndex
 				}.filterNot { it.startsWith(".svn") }
+					.filterNot { file -> fileFilters.any { it(file) } }
 			}.also { logger.info("Files to update in Git: $it") }
 			filePatterns.takeIf { it.isNotEmpty() }?.let {
 				printTime("add") {

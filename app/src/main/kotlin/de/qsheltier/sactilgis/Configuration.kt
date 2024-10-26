@@ -10,7 +10,8 @@ import de.qsheltier.sactilgis.Configuration.Branch.Tag
 data class Configuration(
 	val general: General = General(),
 	val branches: MutableList<Branch> = mutableListOf(),
-	val committers: MutableList<Committer> = mutableListOf()
+	val committers: MutableList<Committer> = mutableListOf(),
+	val filters: MutableList<Filter> = mutableListOf()
 ) {
 
 	data class General(
@@ -107,6 +108,8 @@ data class Configuration(
 		var email: String = ""
 	)
 
+	data class Filter(var path: String = "")
+
 	fun merge(configuration: Configuration): Configuration {
 		val mergedConfiguration = Configuration()
 		mergedConfiguration.general.subversionUrl = configuration.general.subversionUrl ?: general.subversionUrl
@@ -118,6 +121,7 @@ data class Configuration(
 		mergedConfiguration.general.signCommits = configuration.general.signCommits ?: general.signCommits
 		mergedConfiguration.committers += committers.filterNot { it.subversionId in configuration.committers.map(Committer::subversionId) } + configuration.committers
 		mergedConfiguration.branches += configuration.branches.takeIf(List<*>::isNotEmpty) ?: branches
+		mergedConfiguration.filters += filters + configuration.filters
 		return mergedConfiguration
 	}
 

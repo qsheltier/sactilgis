@@ -7,6 +7,7 @@ import de.qsheltier.sactilgis.Configuration.Branch.Origin
 import de.qsheltier.sactilgis.Configuration.Branch.RevisionPath
 import de.qsheltier.sactilgis.Configuration.Branch.Tag
 import de.qsheltier.sactilgis.Configuration.Committer
+import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.sactilgis.Configuration.General
 import de.qsheltier.sactilgis.Configuration.SubversionAuth
 import org.hamcrest.MatcherAssert.assertThat
@@ -178,6 +179,18 @@ class ConfigurationTest {
 				Committer("d", "D D", "d@d"),
 			)
 		)
+	}
+
+	@Test
+	fun `merged configuration contains all filters`() {
+		val firstConfiguration = Configuration().apply {
+			filters += Filter("foo")
+		}
+		val secondConfiguration = Configuration().apply {
+			filters += Filter("bar")
+		}
+		val mergedConfiguration = firstConfiguration.merge(secondConfiguration)
+		assertThat(mergedConfiguration.filters, containsInAnyOrder(Filter("foo"), Filter("bar")))
 	}
 
 	@Test
