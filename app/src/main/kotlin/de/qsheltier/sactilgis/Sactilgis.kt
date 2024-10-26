@@ -14,6 +14,7 @@ import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.PersonIdent
 import org.eclipse.jgit.lib.Ref
+import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
 import org.tmatesoft.svn.core.SVNDepth
 import org.tmatesoft.svn.core.SVNURL
@@ -91,13 +92,17 @@ fun main(vararg arguments: String) {
 		val simpleSvn = SimpleSVN(svnRepository)
 		val svnClientManager = SVNClientManager.newInstance()
 		svnClientManager.setAuthenticationManager(svnRepository.authenticationManager)
-		val revisionCommits = mutableMapOf<Long, RevCommit>()
-		var currentBranch = "main"
+		val stateDirectory = File(workDirectory, ".git/sactilgis")
+		stateDirectory.mkdirs()
+		val revisionCommits = readCacheFromStateDir(stateDirectory, gitRepository.repository).toMutableMap()
+		var currentBranch = gitRepository.repository.branch
 		var currentPath = "/"
 		svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
 
 		var processedRevisionCount = 0
-		val plan = worklist.createPlan().also { logger.info("Plan: $it") }
+		val plan = worklist.createPlan()
+			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
+			.also { logger.info("Plan: $it") }
 		val startTime = System.currentTimeMillis()
 		plan.forEachIndexed { index, (branch, revision) ->
 			logger.info("Processing $branch at Revision $revision")
@@ -114,8 +119,12 @@ fun main(vararg arguments: String) {
 						?: branchOrigins[branch]?.tag?.let(::findActualRevision)
 						?: branchOrigins[branch]?.let { findActualRevision(it.branch!!, it.revision!!) }
 					if (startPoint != null) {
+							val startBranch = branchOrigins[branch]?.tag?.let { branchRevisionsByTag[it]!!.first }
+								?: branchOrigins[branch]?.branch
+								?: repositoryInformation.branchCreationPoints[branch]?.let { findBranchByPathAndRevision(it.first, it.second) }
+						print("(from $startBranch @ $startPoint)")
 						printTime("create") {
-							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[startPoint]!!.name).call()
+							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[startPoint to startBranch]!!.name).call()
 						}
 					} else {
 						printTime("orphan") {
@@ -160,7 +169,8 @@ fun main(vararg arguments: String) {
 						"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 				val commitAuthor = committers.getValue(logEntry.author)
 				mergeRevisionsByBranch[branch]!![revision]?.let { merge ->
-					val commitId = revisionCommits[merge.tag?.let { findActualRevision(it)!! } ?: findActualRevision(merge.branch!!, merge.revision)]!!
+					print("(merge ${merge.tag ?: "${merge.branch} @ ${merge.revision}"})")
+					val commitId = revisionCommits[merge.tag?.let { findActualRevision(it)!! to branchRevisionsByTag[it]!!.first } ?: (findActualRevision(merge.branch!!, merge.revision) to merge.branch!!)]!!
 					gitRepository.repository.writeMergeHeads(listOf(commitId))
 				}
 				val commit = gitRepository.commit()
@@ -170,13 +180,14 @@ fun main(vararg arguments: String) {
 					.setMessage(commitMessage)
 					.setSign(configuration.general.signCommits == true)
 					.call()
-				revisionCommits[revision] = commit
+				revisionCommits[revision to branch] = commit
+				storeCommitInState(stateDirectory, revision, branch, commit)
 			}
 			tagRevisionsByBranch[branch]!![revision]?.let { tag ->
 				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
 				printTime("tag ${tag.name}") {
 					gitRepository.tag()
-						.setObjectId(revisionCommits[revision])
+						.setObjectId(revisionCommits[revision to branch])
 						.setName(tag.name)
 						.setMessage(tagLogEntry.message)
 						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date))
@@ -192,6 +203,25 @@ fun main(vararg arguments: String) {
 			println()
 		}
 	}
+}
+
+private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<Pair<Long, String>, RevCommit> =
+	File(stateDir, "commit-cache.txt").let { file ->
+		if (file.exists()) {
+			file.useLines { lines ->
+				lines.map { it.split(",") }
+					.map { (it[0].toLong() to it[1]) to it[2] }
+					.map { it.first to repository.resolve(it.second)!! }
+					.map { it.first to repository.parseCommit(it.second)!! }
+					.toMap()
+			}
+		} else {
+			mutableMapOf()
+		}
+	}
+
+private fun storeCommitInState(stateDir: File, revision: Long, branch: String, commit: RevCommit) {
+	File(stateDir, "commit-cache.txt").appendText("$revision,$branch,${commit.name}\n")
 }
 
 private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
