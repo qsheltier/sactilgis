@@ -74,10 +74,6 @@ fun main(vararg arguments: String) {
 	val fixRevisionsByBranch = configuration.branches.associate { branch -> branch.name to branch.fixes.associateBy { it.revision } }
 	val branchOrigins = configuration.branches.associate { branch -> branch.name to branch.origin }.filterValues { it != null }
 
-	(configuration.branches.map(Branch::name) - repositoryInformation.branchCreationPoints.keys - branchOrigins.keys).takeIf { it.isNotEmpty() }?.also {
-		println("Branches without creation points: " + it.map { it to branchDefinitions[it]!!.earliestRevision })
-	}
-
 	val worklist = Worklist(
 		repositoryInformation.brachRevisions,
 		repositoryInformation.branchCreationPoints.mapValues { entry -> findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second } +
