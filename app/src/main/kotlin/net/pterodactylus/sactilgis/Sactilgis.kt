@@ -76,8 +76,11 @@ fun main(vararg arguments: String) {
 
 	val worklist = Worklist(
 		repositoryInformation.brachRevisions,
-		repositoryInformation.branchCreationPoints.mapValues { entry -> findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second } +
-				branchOrigins.mapValues { it.value!!.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value!!.branch!! to it.value!!.revision!!) },
+		repositoryInformation.branchCreationPoints.mapValues { entry ->
+			findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second
+		} + branchOrigins.mapValues {
+			it.value!!.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value!!.branch!! to it.value!!.revision!!)
+		},
 		mergeRevisionsByBranch.mapValues { it.value.mapValues { it.value.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value.branch!! to it.value.revision) } }
 	)
 
