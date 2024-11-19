@@ -15,8 +15,9 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 		val branchCreationPoints = mutableMapOf<String, Pair<String, Long>>()
 		val latestRevision = svnRepository.latestRevision
 
-		LongRange(1, latestRevision).forEach { revision ->
-			val logEntry = simpleSvn.getLogEntry("/", revision)!!
+		svnRepository.log(arrayOf("/"), 1, -1, true, false) { logEntry ->
+			val revision = logEntry.revision
+			print("(@$revision)\r")
 			logEntry
 				.changedPaths.keys
 				.mapNotNull { path -> findBranchByPathAndRevision(path, revision) }
@@ -38,6 +39,7 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 					}
 				}
 		}
+		print("\u000b")
 
 		return RepositoryInformation(latestRevision, branchRevisions, branchCreationPoints)
 	}
@@ -51,7 +53,7 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 			?: branchDefinitions
 				.mapValues { (_, branchDefinition) -> branchDefinition.pathAt(revision) }
 				.filter { it.value != null }
-				.filterValues { p -> path.startsWith(p!!) }
+				.filterValues { p -> (path + "/").startsWith(p!! + "/") }
 				.keys.maxByOrNull { it.length }
 
 	private fun findPathForBranchAtRevision(branch: String, revision: Long): String? =
