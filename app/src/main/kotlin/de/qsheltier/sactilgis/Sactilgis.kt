@@ -114,6 +114,7 @@ fun main(vararg arguments: String) {
 
 		var processedRevisionCount = 0
 		val plan = worklist.createPlan()
+			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: repositoryInformation.latestRevision) }
 			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
 			.also { logger.info("Plan: $it") }
 		val startTime = System.currentTimeMillis()
