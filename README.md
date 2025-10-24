@@ -64,6 +64,10 @@ ignore-global-gitignore-file
 sign-commits
 : If `true`, all Git commits and tags will be signed. The necessary configuration (e.g. the user’s signing key) have to be configured outside sactilgis.
 
+last-revision
+: If set, the Subversion repository will only be processed up to this revision. This can be used when manually updating the configuration XML for a Subversion repository; as you would usually manually and visually process the Subversion history in order to generate the appropriate XML configuration, you can use this to mark the latest revision that you have processed.
+: This also allows automating the conversion process (i.e. update to the latest XML, run sactilgis), if you want to keep operating on Subversion while also already checking that the converted Git repository looks reasonable.
+
 ### The `committers` Section
 
 Author data stored in Subversion boils down to a single username; no full name or email address in sight anywhere. As such, the usernames need to be translated into full author details, and that is the purpose of this section.
