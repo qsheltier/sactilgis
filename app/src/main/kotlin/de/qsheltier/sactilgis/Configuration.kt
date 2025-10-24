@@ -28,7 +28,9 @@ data class Configuration(
 		@JsonProperty("ignore-global-gitignore-file")
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
 		@JsonProperty("sign-commits")
-		var signCommits: Boolean? = null
+		var signCommits: Boolean? = null,
+		@param:JsonProperty("last-revision")
+		var lastRevision: Long? = null,
 	)
 
 	data class SubversionAuth(
@@ -119,6 +121,7 @@ data class Configuration(
 		mergedConfiguration.general.useCommitDateFromEntry = configuration.general.useCommitDateFromEntry ?: general.useCommitDateFromEntry
 		mergedConfiguration.general.ignoreGlobalGitIgnoreFile = configuration.general.ignoreGlobalGitIgnoreFile ?: general.ignoreGlobalGitIgnoreFile
 		mergedConfiguration.general.signCommits = configuration.general.signCommits ?: general.signCommits
+		mergedConfiguration.general.lastRevision = configuration.general.lastRevision ?: general.lastRevision
 		mergedConfiguration.committers += committers.filterNot { it.subversionId in configuration.committers.map(Committer::subversionId) } + configuration.committers
 		mergedConfiguration.branches += configuration.branches.takeIf(List<*>::isNotEmpty) ?: branches
 		mergedConfiguration.filters += filters + configuration.filters

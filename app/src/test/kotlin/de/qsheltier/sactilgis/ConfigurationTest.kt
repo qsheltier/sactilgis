@@ -133,6 +133,22 @@ class ConfigurationTest {
 	}
 
 	@Test
+	fun `merge overwrites last revision`() {
+		val oldConfiguration = Configuration(general = General(lastRevision = 1234))
+		val newConfiguration = Configuration(general = General(lastRevision = 2345))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.lastRevision, equalTo(2345))
+	}
+
+	@Test
+	fun `merge does not overwrite last revision if new last revision is null`() {
+		val oldConfiguration = Configuration(general = General(lastRevision = 1234))
+		val newConfiguration = Configuration(general = General(lastRevision = null))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.lastRevision, equalTo(1234))
+	}
+
+	@Test
 	fun `merge concats the committers`() {
 		val oldConfiguration = Configuration().apply {
 			committers += listOf(
