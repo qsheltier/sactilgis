@@ -12,7 +12,6 @@ import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.tmatesoft.svn.core.SVNURL
-import org.tmatesoft.svn.core.io.SVNRepository
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory
 
 class RepositoryScannerTest {
@@ -120,12 +119,15 @@ class RepositoryScannerTest {
 	}
 
 	@Test
-	fun `ambiguous paths are matched longest first`() {
+	fun `ambiguous paths are matched by complete path`() {
 		simpleSvn.createCommit("testuser", "create directory") { commit ->
 			commit.addDirectory("/project1")
 		}
 		simpleSvn.createCommit("testuser", "create directory") { commit ->
 			commit.addDirectory("/project12")
+		}
+		simpleSvn.createCommit("testuser", "create directory") { commit ->
+			commit.addDirectory("/project123")
 		}
 		repositoryScanner.addBranch("p1", BranchDefinition(1L to "/project1"))
 		repositoryScanner.addBranch("p12", BranchDefinition(1L to "/project12"))
@@ -134,6 +136,29 @@ class RepositoryScannerTest {
 			repositoryInformation.brachRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1L)),
 				hasEntry(equalTo("p12"), contains(2L))
+			)
+		)
+	}
+
+	@Test
+	fun `revision touching multiple projects is correctly split`() {
+		simpleSvn.createCommit("testuser", "create directory") { commit ->
+			commit.addDirectory("/project1")
+		}
+		simpleSvn.createCommit("testuser", "create directory") { commit ->
+			commit.addDirectory("/project2")
+		}
+		simpleSvn.createCommit("testuser", "create directory") { commit ->
+			commit.addFile("/project1/readme", "test1".byteInputStream())
+			commit.addFile("/project2/readme", "test2".byteInputStream())
+		}
+		repositoryScanner.addBranch("p1", BranchDefinition(1L to "/project1"))
+		repositoryScanner.addBranch("p2", BranchDefinition(2L to "/project2"))
+		val repositoryInformation = repositoryScanner.identifyBranches()
+		assertThat(
+			repositoryInformation.brachRevisions, allOf(
+				hasEntry(equalTo("p1"), contains(1L, 3L)),
+				hasEntry(equalTo("p2"), contains(2L, 3L))
 			)
 		)
 	}

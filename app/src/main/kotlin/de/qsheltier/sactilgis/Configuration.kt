@@ -10,7 +10,8 @@ import de.qsheltier.sactilgis.Configuration.Branch.Tag
 data class Configuration(
 	val general: General = General(),
 	val branches: MutableList<Branch> = mutableListOf(),
-	val committers: MutableList<Committer> = mutableListOf()
+	val committers: MutableList<Committer> = mutableListOf(),
+	val filters: MutableList<Filter> = mutableListOf()
 ) {
 
 	data class General(
@@ -107,6 +108,8 @@ data class Configuration(
 		var email: String = ""
 	)
 
+	data class Filter(var path: String = "")
+
 	fun merge(configuration: Configuration): Configuration {
 		val mergedConfiguration = Configuration()
 		mergedConfiguration.general.subversionUrl = configuration.general.subversionUrl ?: general.subversionUrl
@@ -118,11 +121,12 @@ data class Configuration(
 		mergedConfiguration.general.signCommits = configuration.general.signCommits ?: general.signCommits
 		mergedConfiguration.committers += committers.filterNot { it.subversionId in configuration.committers.map(Committer::subversionId) } + configuration.committers
 		mergedConfiguration.branches += configuration.branches.takeIf(List<*>::isNotEmpty) ?: branches
+		mergedConfiguration.filters += filters + configuration.filters
 		return mergedConfiguration
 	}
 
 	fun verify() {
-		branches.filter { " " in it.name }.onNotEmpty { throw IllegalStateException("Invalid branch names: ${it.map(Branch::name)}") }
+		branches.filter { isInvalidRefName(it.name) }.onNotEmpty { throw IllegalStateException("Invalid branch names: ${it.map(Branch::name)}") }
 		branches.filter { it.revisionPaths.isEmpty() }.onNotEmpty { throw IllegalStateException("Empty revision paths: $it") }
 
 		val allDefinedBranches = branches.map(Branch::name)
@@ -134,14 +138,9 @@ data class Configuration(
 		if (allDefinedTags.size != allDefinedTags.distinct().size) {
 			throw IllegalStateException("Duplicate tags found: ${allDefinedTags.groupBy { it }.filterValues { it.size > 1 }.keys}")
 		}
-		if (allDefinedTags.any { " " in it }) {
-			throw IllegalStateException("Invalid tag found: ${allDefinedTags.filter { " " in it }}")
-		}
+		allDefinedTags.filter(::isInvalidRefName).onNotEmpty { throw IllegalStateException("Invalid tag names: ${it}") }
 
 		val allOriginTags = branches.mapNotNull(Branch::origin).mapNotNull(Origin::tag)
-		if (allOriginTags.any { " " in it }) {
-			throw IllegalStateException("Invalid origin tag found: ${allOriginTags.filter { " " in it }}")
-		}
 		if (!allDefinedTags.containsAll(allOriginTags)) {
 			throw IllegalStateException("Missing origin tag found: ${allOriginTags - allDefinedTags}")
 		}
@@ -170,3 +169,13 @@ private fun <T> Collection<T>.onNotEmpty(action: (Collection<T>) -> Unit) = run 
 		action(this)
 	}
 }
+
+private fun isInvalidRefName(ref: String) =
+	ref.split("/").any { it.startsWith(".") || it.endsWith(".lock") } ||
+			ref.contains("..") ||
+			ref.any { it in setOf(' ', '~', '^', ':', '?', '*', '[') || (it < ' ') || (it == '\u007f') } ||
+			ref.startsWith("/") || ref.endsWith("/") || "//" in ref ||
+			ref.endsWith(".") ||
+			"@{" in ref ||
+			ref == "@" ||
+			"\\" in ref
