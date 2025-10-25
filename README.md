@@ -232,6 +232,12 @@ In order to be able to e.g. define a common mapping for committers (because in a
 
 This mechanism makes it possible to define a number of settings that can be applied to any number of different projects. The most notable target for use is the `committers` section.
 
+
+## Known Problems
+
+* jgit (the library for handling the Git repository) writes a packed-refs file that can be understood by Git, but not by all clients; e.g. [Fork](https://git-fork.com/) cannot handle it. Workaround: run `git pack-refs` in the Git repository after conversion.
+
+
 ## TODO
 
 There are several things that I still want to implement:
