@@ -166,7 +166,7 @@ fun main(vararg arguments: String) {
 			}
 			val filePatterns = printTime("status") {
 				gitRepository.status().call().let { status ->
-					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.untrackedFolders + status.ignoredNotInIndex
+					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.ignoredNotInIndex
 				}.filterNot { it.startsWith(".svn") }
 					.filterNot { file -> fileFilters.any { it(file) } }
 			}.also { logger.info("Files to update in Git: $it") }
