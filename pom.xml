@@ -7,7 +7,7 @@
 	<packaging>pom</packaging>
 
 	<properties>
-		<kotlin.version>1.9.23</kotlin.version>
+		<kotlin.version>2.2.21</kotlin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -68,12 +68,12 @@
 			<dependency>
 				<groupId>net.java.dev.jna</groupId>
 				<artifactId>jna-platform</artifactId>
-				<version>5.15.0</version>
+				<version>5.18.1</version>
 			</dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-nop</artifactId>
-				<version>1.7.32</version>
+				<version>1.7.36</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
