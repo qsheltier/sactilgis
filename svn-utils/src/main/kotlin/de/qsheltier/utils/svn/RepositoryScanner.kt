@@ -65,7 +65,7 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 
 }
 
-data class RepositoryInformation(val latestRevision: Long, val brachRevisions: Map<String, SortedSet<Long>>, val branchCreationPoints: Map<String, Pair<String, Long>>)
+data class RepositoryInformation(val latestRevision: Long, val branchRevisions: Map<String, SortedSet<Long>>, val branchCreationPoints: Map<String, Pair<String, Long>>)
 
 private operator fun Pair<Long, Long>.contains(value: Long) =
 	if (second != -1L) {

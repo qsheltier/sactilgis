@@ -54,7 +54,7 @@ fun main(vararg arguments: String) {
 	val committer = configuration.general.committer?.let { PersonIdent(it.name, it.email) }
 
 	fun findActualRevision(branch: String, revision: Long) =
-		repositoryInformation.brachRevisions[branch]!!.headSet(revision + 1).last()
+		repositoryInformation.branchRevisions[branch]!!.headSet(revision + 1).last()
 
 	val branchRevisionsByTag = configuration.branches.flatMap { branch -> branch.tags.map { it.name to (branch.name to it.revision) } }.toMap()
 
@@ -72,7 +72,7 @@ fun main(vararg arguments: String) {
 	val branchOrigins = configuration.branches.associate { branch -> branch.name to branch.origin }.filterValues { it != null }
 
 	val worklist = Worklist(
-		repositoryInformation.brachRevisions,
+		repositoryInformation.branchRevisions,
 		repositoryInformation.branchCreationPoints.mapValues { entry ->
 			findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second
 		} + branchOrigins.mapValues {

@@ -30,7 +30,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p2", BranchDefinition(0L to "/project2"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1, 3)),
 				hasEntry(equalTo("p2"), contains(2, 4))
 			)
@@ -43,7 +43,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p1", BranchDefinition(0L to "/project1"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1, 3))
 			)
 		)
@@ -64,7 +64,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p1", BranchDefinition(0L to "/project1", 6L to "/trunk/project1"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1, 3, 6))
 			)
 		)
@@ -76,7 +76,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p2", BranchDefinition(2L to "/project2"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p2"), contains(2, 4))
 			)
 		)
@@ -112,7 +112,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p2", BranchDefinition(2L to "/project2"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p2"), contains(2, 4))
 			)
 		)
@@ -133,7 +133,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p12", BranchDefinition(1L to "/project12"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1L)),
 				hasEntry(equalTo("p12"), contains(2L))
 			)
@@ -156,7 +156,7 @@ class RepositoryScannerTest {
 		repositoryScanner.addBranch("p2", BranchDefinition(2L to "/project2"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
 		assertThat(
-			repositoryInformation.brachRevisions, allOf(
+			repositoryInformation.branchRevisions, allOf(
 				hasEntry(equalTo("p1"), contains(1L, 3L)),
 				hasEntry(equalTo("p2"), contains(2L, 3L))
 			)
@@ -171,7 +171,7 @@ class RepositoryScannerTest {
 		}
 		repositoryScanner.addBranch("p3", BranchDefinition(5L to "/project3"))
 		val repositoryInformation = repositoryScanner.identifyBranches()
-		assertThat(repositoryInformation.brachRevisions["p3"], contains(5L))
+		assertThat(repositoryInformation.branchRevisions["p3"], contains(5L))
 		assertThat(repositoryInformation.branchCreationPoints["p3"], nullValue())
 	}
 
