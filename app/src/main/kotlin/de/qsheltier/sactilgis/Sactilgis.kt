@@ -29,10 +29,7 @@ import org.tmatesoft.svn.core.wc.SVNStatusType.STATUS_NORMAL
 
 fun main(vararg arguments: String) {
 
-	val configuration = arguments.map(::File).filter(File::exists)
-		.map { xmlMapper.readValue(it, Configuration::class.java) }
-		.reduceOrNull { mergedConfiguration, configuration -> mergedConfiguration.merge(configuration) }
-		?: throw IllegalStateException("No configuration(s) given.")
+	val configuration = readConfigurationFiles(*arguments).merge()
 	configuration.verify()
 
 	val svnUrl = SVNURL.parseURIDecoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
@@ -222,6 +219,15 @@ fun main(vararg arguments: String) {
 		}
 	}
 }
+
+private fun readConfigurationFiles(vararg arguments: String) =
+	arguments.map(::File)
+		.filter(File::exists)
+		.map { xmlMapper.readValue(it, Configuration::class.java) }
+
+private fun List<Configuration>.merge() =
+	reduceOrNull(Configuration::merge)
+		?: throw IllegalStateException("No configuration(s) given.")
 
 private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<Pair<Long, String>, RevCommit> =
 	File(stateDir, "commit-cache.txt").let { file ->
