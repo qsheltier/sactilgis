@@ -1,11 +1,12 @@
 package de.qsheltier.sactilgis
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.util.StdConverter
+import com.fasterxml.jackson.annotation.JsonValue
 import de.qsheltier.sactilgis.Configuration.Branch.Merge
 import de.qsheltier.sactilgis.Configuration.Branch.Origin
 import de.qsheltier.sactilgis.Configuration.Branch.Tag
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.util.StdConverter
 
 data class Configuration(
 	val general: General = General(),
@@ -15,47 +16,41 @@ data class Configuration(
 ) {
 
 	data class General(
-		@JsonProperty("subversion-url")
+		@param:JsonProperty("subversion-url")
 		var subversionUrl: String? = null,
-		@JsonProperty("subversion-auth")
+		@param:JsonProperty("subversion-auth")
 		var subversionAuth: SubversionAuth? = null,
-		@JsonProperty("committer")
 		var committer: Committer? = null,
-		@JsonProperty("target-directory")
+		@param:JsonProperty("target-directory")
 		var targetDirectory: String? = null,
-		@JsonProperty("use-commit-date-from-entry")
+		@param:JsonProperty("use-commit-date-from-entry")
 		var useCommitDateFromEntry: Boolean? = null,
-		@JsonProperty("ignore-global-gitignore-file")
+		@param:JsonProperty("ignore-global-gitignore-file")
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
-		@JsonProperty("sign-commits")
+		@param:JsonProperty("sign-commits")
 		var signCommits: Boolean? = null,
 		@param:JsonProperty("last-revision")
 		var lastRevision: Long? = null,
 	)
 
 	data class SubversionAuth(
-		@JsonProperty("username")
 		var username: String? = null,
-		@JsonProperty("password")
 		var password: String? = null
 	)
 
-	class Branch {
-
-		var name: String = ""
-		var origin: Origin? = null
-		@JsonProperty("revision-paths")
-		val revisionPaths: MutableList<RevisionPath> = mutableListOf()
-		val merges: MutableList<Merge> = mutableListOf()
-		val tags: MutableList<Tag> = mutableListOf()
+	data class Branch(
+		var name: String = "",
+		var origin: Origin? = null,
+		@param:JsonProperty("revision-paths")
+		val revisionPaths: MutableList<RevisionPath> = mutableListOf(),
+		val merges: MutableList<Merge> = mutableListOf(),
+		val tags: MutableList<Tag> = mutableListOf(),
 		val fixes: MutableList<Fix> = mutableListOf()
+	) {
 
 		data class Origin(
-			@JsonProperty("tag")
 			var tag: String? = null,
-			@JsonProperty("branch")
 			var branch: String? = null,
-			@JsonProperty("revision")
 			var revision: Long? = null,
 		)
 
@@ -67,50 +62,43 @@ data class Configuration(
 				}
 				return value!!.toLong()
 			}
+
 		}
 
-		class RevisionPath {
-
-			@JsonDeserialize(converter = RevisionConverter::class)
-			var revision: Long = 0
+		data class RevisionPath(
+			@param:JsonDeserialize(converter = RevisionConverter::class)
+			var revision: Long = 0,
 			var path: String = ""
+		)
 
-		}
-
-		class Merge {
-
-			var revision: Long = 0
-			var branch: String? = null
+		data class Merge(
+			var revision: Long = 0,
+			var branch: String? = null,
 			var tag: String? = null
+		)
 
-		}
-
-		class Tag {
-
-			var revision: Long = 0
-			var name: String = ""
-			@JsonProperty("message-revision")
+		data class Tag(
+			var revision: Long = 0,
+			var name: String = "",
+			@param:JsonProperty("message-revision")
 			var messageRevision: Long = 0
+		)
 
-		}
-
-		class Fix {
-
-			var revision: Long = 0
+		data class Fix(
+			var revision: Long = 0,
 			var message: String = ""
-
-		}
+		)
 
 	}
 
 	data class Committer(
-		@get:JsonProperty("id")
+		@param:JsonProperty("id")
 		var subversionId: String = "",
 		var name: String = "",
 		var email: String = ""
 	)
 
-	data class Filter(var path: String = "")
+	data class Filter(@JsonValue var path: String = "")
 
 	fun merge(configuration: Configuration): Configuration {
 		val mergedConfiguration = Configuration()

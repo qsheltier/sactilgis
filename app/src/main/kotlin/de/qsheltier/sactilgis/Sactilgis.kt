@@ -1,6 +1,5 @@
 package de.qsheltier.sactilgis
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
@@ -26,6 +25,8 @@ import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
 import org.tmatesoft.svn.core.wc.SVNStatus
 import org.tmatesoft.svn.core.wc.SVNStatusType.STATUS_NORMAL
+import tools.jackson.dataformat.xml.XmlMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 fun main(vararg arguments: String) {
 
@@ -283,7 +284,7 @@ private fun <T : Any> printTime(text: String, action: () -> T): T {
 private fun Git.branchDoesNotExist(branch: String) =
 	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
 
-private val xmlMapper = XmlMapper()
+private val xmlMapper = XmlMapper.builder().addModule(kotlinModule()).build()
 private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {
 	System.setProperty("java.util.logging.SimpleFormatter.format", "%tF %<tT %5\$s%n")
 	addHandler(FileHandler("./sactilgis.log").apply { this.formatter = SimpleFormatter() })
