@@ -28,7 +28,7 @@ And already your conversion should be underway!
 
 ## Configuration
 
-The configuration is done using one or more XML files (see [below](#merging-configurations)). Under the top level `configuration` tag, there are three more sections that are used to control all of sactilgis’s behaviour: `general`, `committers`, and `branches`.
+The configuration is done using one or more XML files (see [below](#merging-configurations)). Under the top level `configuration` tag, there are several sections that are used to control all of sactilgis’s behaviour: `general`, `committers`, `branches`, and `filters`.
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -42,6 +42,9 @@ The configuration is done using one or more XML files (see [below](#merging-conf
 	<branches>
 		…
 	</branches>
+	<filters>
+		…
+	</filters>
 </configuration>
 ```
 
@@ -221,6 +224,20 @@ revision
 message
 : The new message for this revision.
 
+
+### The `filters`section
+
+This section contains filters for files that should be ignored when creating commits.
+
+```xml
+<filter>.DS_Store</filter>
+```
+
+A filter is a regex string that will be matched against the name of each file (relative to the repository’s root directory) being handled. The regex will match anywhere in the string.
+
+An arbitrary amount of filters can be added.
+
+
 ## Merging Configurations
 
 In order to be able to e.g. define a common mapping for committers (because in a corporate environment you have many repositories, but they are all being worked on by the same people) it is possible to specify multiple XML files on the command line. In general, the values from later files are used to override values from earlier files. The following exceptions apply:
@@ -229,6 +246,7 @@ In order to be able to e.g. define a common mapping for committers (because in a
 2. The `committer` and the `subversion-auth` value in the `general` section can only be overridden in total, i.e. it is not possible to only change the name of the committer, or the password for the authentication.
 3. The committers from the `committers` section are merged by the subversion ID, i.e. if a later file has a committer with the same subversion ID as a previous file, the committer from the later file is used.
 4. Branches are not merged but only copied from the later files. That means that any branch definitions should be in the last file only. Non-present branches will not override existing branches.
+5. Filters from all configurations are added.
 
 This mechanism makes it possible to define a number of settings that can be applied to any number of different projects. The most notable target for use is the `committers` section.
 
