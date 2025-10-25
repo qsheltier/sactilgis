@@ -8,6 +8,12 @@ However, due to the large number of things you can do to a Subversion repository
 
 However, certain things are impractical to do at this stage of conversion, so in almost every case further massaging of the repository (e.g. using `git-filter-branch`) is recommended — unless you’re already satisfied.
 
+While the actual conversion of your repository can take quite an amount of time (depending mostly on size of the repository and your network connection), it is expected that actually way more time will go into producing an XML file that will enable the “best” conversion possible. (What “best” means, is entirely up to you.) If you are planning on converting a repository that is also actively being worked on, you will have no choice but to have the sactilgis configuration always being a little behind the current state of the repository. Fortunately, sactilgis has a couple of features that can help you in this situation:
+
+* sactilgis can resume a conversion from where it previously left off. This includes aborted sactilgis runs; when starting a new run, sactilgis will check for an existing Git repository, will take note which branch is checked out and will then do Everything Correctly™ in order to resume without issues.
+* It is possible to restrict how far sactilgis will process a repository. When you have created a configuration that is valid up to revision X, you can prevent sactilgis from progressing beyond revision X. This also allows an automated conversion process: have a periodically starting job that gets the latest configuration and starts sactilgis. It will skip commits it has already processed and will stop once it reaches the last revision specified in the configuration.
+
+
 ## Building
 
 sactilgis comes with its own Maven wrapper, so building it should be as easy as:
@@ -50,13 +56,13 @@ subversion-auth
 : Contains a `username` and a `password` element that will be used to authenticate all access to the configured repository. This element can be omitted completely if authorization is unnecessary; if present, its elements *must* be set.
 
 target-directory
-: The directory in which to store the resulting Git repository. This directory will be *removed and re-created* before the conversion starts!
+: The directory in which to store the resulting Git repository. If there already is a Git repository in this directory, it will be assumed that it was created a previous run of sactilgis. If there is no Git repository in this directory, or the directory does not exist, it will be *removed and re-created* before the conversion starts!
 
 committer
 : The name and email address of the person doing the conversion. This name and email address will be used for the committer data, and for tags. Format is the same as for the [committers](#the-committers-section); however, the `id` is optional. If this element is omitted, the original commit author is used as committer.
 
 use-commit-date-from-entry
-: If `true`, the author date of the Subversion commits are used as commit date for the Git commits. The author date of the Git commit is always taken from the Subversion commit date.
+: If `true`, the author date of the Subversion commits are used as commit date for the Git commits. The author date of the Git commit is always taken from the Subversion commit date. If `false`, the current time will be used as commit time.
 
 ignore-global-gitignore-file
 : If `true`, a globally configured `.gitignore` file (configured by `core.excludesFile` using `git config`) will be ignored when commits are created. Setting this to `false` may lead to repositories with all files defined in your `.gitignore` file missing which may or may not be the intended consequence. As I currently consider the use of sactilgis to be a matter of keeping history intact as much as possible, I would recommend setting this to `true`.
@@ -65,8 +71,7 @@ sign-commits
 : If `true`, all Git commits and tags will be signed. The necessary configuration (e.g. the user’s signing key) have to be configured outside sactilgis.
 
 last-revision
-: If set, the Subversion repository will only be processed up to this revision. This can be used when manually updating the configuration XML for a Subversion repository; as you would usually manually and visually process the Subversion history in order to generate the appropriate XML configuration, you can use this to mark the latest revision that you have processed.
-: This also allows automating the conversion process (i.e. update to the latest XML, run sactilgis), if you want to keep operating on Subversion while also already checking that the converted Git repository looks reasonable.
+: If set, the Subversion repository will only be processed up to this revision.
 
 ### The `committers` Section
 
