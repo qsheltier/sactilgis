@@ -14,3 +14,12 @@ fun Git.createTag(commit: RevCommit, tagName: String, tagMessage: String, tagger
 		.setAnnotated(true)
 		.setSigned(false)
 		.call()
+
+fun Git.createCommit(author: PersonIdent, committer: PersonIdent, message: String): RevCommit =
+	commit()
+		.setAllowEmpty(true)
+		.setAuthor(author)
+		.setCommitter(committer)
+		.setMessage(message)
+		.setSign(false)
+		.call()

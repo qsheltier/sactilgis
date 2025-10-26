@@ -4,6 +4,7 @@ import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.action.DelayedPeriodicAction
+import de.qsheltier.utils.git.createCommit
 import de.qsheltier.utils.git.createTag
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
@@ -197,13 +198,8 @@ fun main(vararg arguments: String) {
 						.let { (branch, revision) -> revisionCommits[revision to branch]!! }
 					gitRepository.repository.writeMergeHeads(listOf(commitId))
 				}
-				val commit = gitRepository.commit()
-					.setAllowEmpty(true)
-					.setAuthor(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId))
-					.setCommitter((committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it })
-					.setMessage(commitMessage)
-					.setSign(false)
-					.call()
+				val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
+				val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
 				revisionCommits[revision to branch] = commit
 				storeCommitInState(stateDirectory, revision, branch, commit)
 			}
