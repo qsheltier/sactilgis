@@ -3,6 +3,7 @@ package de.qsheltier.sactilgis
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
+import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
@@ -112,7 +113,11 @@ fun main(vararg arguments: String) {
 		var currentBranch = gitRepository.repository.branch
 		var currentPath = "/"
 
-		var processedRevisionCount = 0
+		val periodicGarbageCollection = DelayedPeriodicAction(100) {
+			printTime("gc") {
+				gitRepository.gc().call()
+			}
+		}
 		val plan = worklist.createPlan()
 			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: repositoryInformation.latestRevision) }
 			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
@@ -212,12 +217,7 @@ fun main(vararg arguments: String) {
 						.setAnnotated(true).setSigned(false).call()
 				}
 			}
-			processedRevisionCount++
-			if (processedRevisionCount.rem(100) == 0) {
-				printTime("gc") {
-					gitRepository.gc().call()
-				}
-			}
+			periodicGarbageCollection()
 			println()
 		}
 	}
