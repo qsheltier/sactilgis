@@ -4,6 +4,7 @@ import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.action.DelayedPeriodicAction
+import de.qsheltier.utils.git.createTag
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
@@ -209,12 +210,8 @@ fun main(vararg arguments: String) {
 			tagRevisionsByBranch[branch]!![revision]?.let { tag ->
 				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
 				printTime("tag ${tag.name}") {
-					gitRepository.tag()
-						.setObjectId(revisionCommits[revision to branch])
-						.setName(tag.name)
-						.setMessage(tagLogEntry.message)
-						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId))
-						.setAnnotated(true).setSigned(false).call()
+					val tagger = PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId)
+					gitRepository.createTag(revisionCommits[revision to branch]!!, tag.name, tagLogEntry.message, tagger)
 				}
 			}
 			periodicGarbageCollection()
