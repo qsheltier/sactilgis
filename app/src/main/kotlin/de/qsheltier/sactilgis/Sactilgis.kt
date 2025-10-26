@@ -6,6 +6,8 @@ import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.git.createCommit
 import de.qsheltier.utils.git.createTag
+import de.qsheltier.utils.git.readCommitCache
+import de.qsheltier.utils.git.storeCommitInCache
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
@@ -19,7 +21,6 @@ import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.PersonIdent
 import org.eclipse.jgit.lib.Ref
-import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
 import org.tmatesoft.svn.core.SVNDepth
 import org.tmatesoft.svn.core.SVNURL
@@ -111,7 +112,7 @@ fun main(vararg arguments: String) {
 		}
 		val stateDirectory = File(workDirectory, ".git/sactilgis")
 		stateDirectory.mkdirs()
-		val revisionCommits = readCacheFromStateDir(stateDirectory, gitRepository.repository).toMutableMap()
+		val revisionCommits = gitRepository.readCommitCache().toMutableMap()
 		var currentBranch = gitRepository.repository.branch
 		var currentPath = "/"
 
@@ -201,7 +202,7 @@ fun main(vararg arguments: String) {
 				val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
 				val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
 				revisionCommits[revision to branch] = commit
-				storeCommitInState(stateDirectory, revision, branch, commit)
+				gitRepository.storeCommitInCache(revision, branch, commit)
 			}
 			tagRevisionsByBranch[branch]!![revision]?.let { tag ->
 				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
@@ -224,25 +225,6 @@ private fun readConfigurationFiles(vararg arguments: String) =
 private fun List<Configuration>.merge() =
 	reduceOrNull(Configuration::merge)
 		?: throw IllegalStateException("No configuration(s) given.")
-
-private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<Pair<Long, String>, RevCommit> =
-	File(stateDir, "commit-cache.txt").let { file ->
-		if (file.exists()) {
-			file.useLines { lines ->
-				lines.map { it.split(",") }
-					.map { (it[0].toLong() to it[2]) to it[1] }
-					.map { it.first to repository.resolve(it.second)!! }
-					.map { it.first to repository.parseCommit(it.second)!! }
-					.toMap()
-			}
-		} else {
-			mutableMapOf()
-		}
-	}
-
-private fun storeCommitInState(stateDir: File, revision: Long, branch: String, commit: RevCommit) {
-	File(stateDir, "commit-cache.txt").appendText("$revision,${commit.name},$branch\n")
-}
 
 private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
 	printTime("revert") {
