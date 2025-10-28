@@ -95,6 +95,18 @@ class ConfigurationParserTest {
 	}
 
 	@Test
+	fun `timezone can be parsed`() {
+		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
+			<configuration>
+				<general>
+					<timezone>World/Test</timezone>
+				</general>
+			</configuration>
+			""", Configuration::class.java)
+		assertThat(configuration.general.timezone, equalTo("World/Test"))
+	}
+
+	@Test
 	fun `ignore-global-gitignore-file can be parsed`() {
 		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
 			<configuration>

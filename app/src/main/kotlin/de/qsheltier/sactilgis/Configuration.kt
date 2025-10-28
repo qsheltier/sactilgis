@@ -25,6 +25,8 @@ data class Configuration(
 		var targetDirectory: String? = null,
 		@param:JsonProperty("use-commit-date-from-entry")
 		var useCommitDateFromEntry: Boolean? = null,
+		@param:JsonProperty("timezone")
+		var timezone: String? = null,
 		@param:JsonProperty("ignore-global-gitignore-file")
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
 		@param:JsonProperty("sign-commits")
@@ -107,6 +109,7 @@ data class Configuration(
 		mergedConfiguration.general.committer = configuration.general.committer ?: general.committer
 		mergedConfiguration.general.targetDirectory = configuration.general.targetDirectory ?: general.targetDirectory
 		mergedConfiguration.general.useCommitDateFromEntry = configuration.general.useCommitDateFromEntry ?: general.useCommitDateFromEntry
+		mergedConfiguration.general.timezone = configuration.general.timezone ?: general.timezone
 		mergedConfiguration.general.ignoreGlobalGitIgnoreFile = configuration.general.ignoreGlobalGitIgnoreFile ?: general.ignoreGlobalGitIgnoreFile
 		mergedConfiguration.general.signCommits = configuration.general.signCommits ?: general.signCommits
 		mergedConfiguration.general.lastRevision = configuration.general.lastRevision ?: general.lastRevision

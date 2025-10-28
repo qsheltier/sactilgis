@@ -7,6 +7,7 @@ import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
 import java.io.File
+import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import java.util.logging.FileHandler
 import java.util.logging.Logger
@@ -33,6 +34,7 @@ fun main(vararg arguments: String) {
 	val configuration = readConfigurationFiles(*arguments).merge()
 	configuration.verify()
 
+	val zoneId = (configuration.general.timezone?.let(TimeZone::getTimeZone) ?: TimeZone.getDefault()).toZoneId()
 	val svnUrl = SVNURL.parseURIDecoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
 	val svnRepository = SVNRepositoryFactory.create(svnUrl)
 	configuration.general.subversionAuth?.let { subversionAuth ->
@@ -191,8 +193,8 @@ fun main(vararg arguments: String) {
 				}
 				val commit = gitRepository.commit()
 					.setAllowEmpty(true)
-					.setAuthor(PersonIdent(commitAuthor, logEntry.date))
-					.setCommitter((committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date) else it })
+					.setAuthor(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId))
+					.setCommitter((committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it })
 					.setMessage(commitMessage)
 					.setSign(configuration.general.signCommits == true)
 					.call()
@@ -206,7 +208,7 @@ fun main(vararg arguments: String) {
 						.setObjectId(revisionCommits[revision to branch])
 						.setName(tag.name)
 						.setMessage(tagLogEntry.message)
-						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date))
+						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId))
 						.setAnnotated(true).setSigned(configuration.general.signCommits == true).call()
 				}
 			}

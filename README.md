@@ -67,6 +67,9 @@ committer
 use-commit-date-from-entry
 : If `true`, the author date of the Subversion commits are used as commit date for the Git commits. The author date of the Git commit is always taken from the Subversion commit date. If `false`, the current time will be used as commit time.
 
+timezone
+: The ID of the timezone to use for the commit times, like `Europe/Berlin` or `Etc/Zulu`. If omitted, the default timezone is used.
+
 ignore-global-gitignore-file
 : If `true`, a globally configured `.gitignore` file (configured by `core.excludesFile` using `git config`) will be ignored when commits are created. Setting this to `false` may lead to repositories with all files defined in your `.gitignore` file missing which may or may not be the intended consequence. As I currently consider the use of sactilgis to be a matter of keeping history intact as much as possible, I would recommend setting this to `true`.
 

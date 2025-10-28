@@ -101,6 +101,22 @@ class ConfigurationTest {
 	}
 
 	@Test
+	fun `merge overwrites timezone`() {
+		val oldConfiguration = Configuration(general = General(timezone = "World/Test"))
+		val newConfiguration = Configuration(general = General(timezone = "World/Secret Lab"))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.timezone, equalTo("World/Secret Lab"))
+	}
+
+	@Test
+	fun `merge does not overwrite timezone when new timezone is null`() {
+		val oldConfiguration = Configuration(general = General(timezone = "World/Test"))
+		val newConfiguration = Configuration(general = General(timezone = null))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.timezone, equalTo("World/Test"))
+	}
+
+	@Test
 	fun `merge overwrites ignore-global-gitignore flag`() {
 		val oldConfiguration = Configuration(general = General(ignoreGlobalGitIgnoreFile = true))
 		val newConfiguration = Configuration(general = General(ignoreGlobalGitIgnoreFile = false))
