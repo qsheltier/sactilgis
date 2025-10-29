@@ -237,7 +237,7 @@ private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<P
 		if (file.exists()) {
 			file.useLines { lines ->
 				lines.map { it.split(",") }
-					.map { (it[0].toLong() to it[1]) to it[2] }
+					.map { (it[0].toLong() to it[2]) to it[1] }
 					.map { it.first to repository.resolve(it.second)!! }
 					.map { it.first to repository.parseCommit(it.second)!! }
 					.toMap()
@@ -248,7 +248,7 @@ private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<P
 	}
 
 private fun storeCommitInState(stateDir: File, revision: Long, branch: String, commit: RevCommit) {
-	File(stateDir, "commit-cache.txt").appendText("$revision,$branch,${commit.name}\n")
+	File(stateDir, "commit-cache.txt").appendText("$revision,${commit.name},$branch\n")
 }
 
 private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
