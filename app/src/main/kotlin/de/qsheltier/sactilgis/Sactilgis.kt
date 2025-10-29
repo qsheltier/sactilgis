@@ -6,9 +6,9 @@ import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
+import de.qsheltier.utils.time.toDurationString
 import java.io.File
 import java.util.TimeZone
-import java.util.concurrent.TimeUnit
 import java.util.logging.FileHandler
 import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
@@ -263,13 +263,6 @@ private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnR
 		svnClientManager.wcClient.doRevert(arrayOf(workDirectory), SVNDepth.INFINITY, null)
 	}
 }
-
-private fun Long.toDurationString() = listOf(TimeUnit.DAYS to "d" to Int.MAX_VALUE, TimeUnit.HOURS to "h" to 24, TimeUnit.MINUTES to "m" to 60, TimeUnit.SECONDS to "s" to 60)
-	.map { (this / it.first.first.toMillis(1)) % it.second to it.first.second}
-	.dropWhile { it.first == 0L }
-	.take(2)
-	.ifEmpty { listOf(0L to "s") }
-	.joinToString(separator = " ") { "%d%s".format(it.first, it.second) }
 
 private fun String.replaceLineBreaks() = replace(Regex("\\\\n"), "\n")
 
