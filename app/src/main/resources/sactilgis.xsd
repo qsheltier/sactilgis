@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="https://github.com/qsheltier/sactilgis" xmlns="https://github.com/qsheltier/sactilgis" elementFormDefault="qualified">
+
+	<xs:complexType name="ConfigurationType">
+		<xs:annotation>
+			<xs:documentation>
+				The main tag for a sactilgis configuration file. Everything in here is optional.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:all>
+			<xs:element name="general" type="GeneralType" minOccurs="0"/>
+			<xs:element name="branches" type="BranchesType" minOccurs="0"/>
+			<xs:element name="committers" type="CommittersType" minOccurs="0"/>
+			<xs:element name="filters" type="FiltersType" minOccurs="0"/>
+		</xs:all>
+	</xs:complexType>
+
+	<xs:complexType name="GeneralType">
+		<xs:annotation>
+			<xs:documentation>
+				This section contains configuration that is not expected to change a lot.
+				As such, it is probably advisable to put these into a separate file, which will
+				at runtime be merged with other, more project-specific configuration files.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:all>
+			<xs:element name="subversion-url" type="xs:anyURI" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						The URL of the Subversion repository to convert.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="subversion-auth" type="SubversionAuthType" minOccurs="0"/>
+			<xs:element name="committer" type="CommitterType" minOccurs="0"/>
+			<xs:element name="target-directory" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						The directory at which to create the Git repository. If this directory already
+						exists and contains a Git repository, sactilgis will try to resume a previous
+						conversion. If the directory already exists, but is not a Git repository, it will be
+						deleted and re-created. If it does not exist, it will be created.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="use-commit-date-from-entry" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						If true, the date of the Subversion commit will be used as committer date (not
+						author date!) for the Git commit. Otherwise, the current time will be used.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="timezone" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						The timezone which will be used to create correct timestamps.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ignore-global-gitignore-file" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						If true, a global .gitignore file will be ignored during the conversion. Otherwise,
+						it will be used and may produce unexpected results.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="last-revision" type="xs:integer" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						The last revision of the Subversion repository, for which valid branch information
+						in the configuration file is present. No revisions later than this value will be
+						processed during a conversion.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:all>
+	</xs:complexType>
+
+	<xs:complexType name="SubversionAuthType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains username and password for the Subversion server.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="username" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The username for the Subversion server.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="password" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The password for the Subversion server.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CommitterType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains user data that is used to create proper author information
+				in Git commits from the user ID given to us by Subversion.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:all>
+			<xs:element name="id" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The ID of the user in Subversion.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The name to use for Git commits.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="email" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The email to use for Git commits.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:all>
+	</xs:complexType>
+
+	<xs:complexType name="BranchesType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains a list of all branches making up this project.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="branch" type="BranchType" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="BranchType">
+		<xs:annotation>
+			<xs:documentation>
+				Defines a branch in Git. As Subversion does not know what a branch is,
+				this structure is used to supply all necessary information to create the most
+				accurate representation of the Subversion repository’s history possible.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:all>
+			<xs:element name="name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The name of the branch; must be a valid Git branch name.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="origin" type="OriginType" minOccurs="0"/>
+			<xs:element name="revision-paths" type="RevisionPathsType"/>
+			<xs:element name="merges" type="MergesType" minOccurs="0"/>
+			<xs:element name="tags" type="TagsType" minOccurs="0"/>
+			<xs:element name="fixes" type="FixesType" minOccurs="0"/>
+		</xs:all>
+	</xs:complexType>
+
+	<xs:complexType name="OriginType">
+		<xs:annotation>
+			<xs:documentation>
+				Defines the origin of a branch. If the branch origin cannot be determined
+				automatically (because it was not created using a “copy” operation in Subversion,
+				or because the information gathered from Subversion turns out to be incorrect),
+				it is possible to either set a branch and revision from which to create the new
+				branch, or to create the new branch from a tag.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:sequence>
+				<xs:element name="branch" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>
+							The branch this branch should be created from.
+						</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="revision" type="xs:integer">
+					<xs:annotation>
+						<xs:documentation>
+							The revision of the original branch this branch should be created from.
+						</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+			<xs:element name="tag" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The tag this branch should be created from.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:complexType>
+
+	<xs:complexType name="RevisionPathsType">
+		<xs:annotation>
+			<xs:documentation>
+				Defines the “path” of a branch, as it moves though a repository’s history. If
+				your repository is more-or-less well maintained, most branches should only
+				have a single &lt;revision-path> element here; more complex histories may
+				require more elements.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="revision-path" type="RevisionPathType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="RevisionPathType">
+		<xs:annotation>
+			<xs:documentation>
+				A point in the Subversion repository, defined by revision and the path, that
+				marks the starting point of a branch’s history. By including several elements
+				it is possible to change a branch’s course the Subversion repository, e.g. in
+				cases where the repository was restructured, or the branch was renamed.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="revision" type="xs:integer">
+				<xs:annotation>
+					<xs:documentation>
+						The revision from which this branch should be tracked at the given path.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="path" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The location of the branch in the repository.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="MergesType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains all merges that should be recorded for this branch. As merging in
+				Subversion can be done in a way that cannot be represented in Git, no attempt
+				was made to do so; instead, all merges have to be defined manually.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="merge" type="MergeType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="MergeType">
+		<xs:annotation>
+			<xs:documentation>
+				Defines a merge from a different branch into this branch.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="revision" type="xs:integer">
+				<xs:annotation>
+					<xs:documentation>
+						The revision at which the merge is happening.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice>
+				<xs:annotation>
+					<xs:documentation>
+						The source of the merge can be either a branch or a tag.
+					</xs:documentation>
+				</xs:annotation>
+				<xs:element name="branch" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>
+							The name of a Git branch whose last commit will be merged into this branch.
+						</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="tag" type="xs:string">
+					<xs:annotation>
+						<xs:documentation>
+							The name of a tag that will be merged into this branch.
+						</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="TagsType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains definitions of tags created from this branch.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="tag" type="TagType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="TagType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains all necessary information to create a tag from this branch.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="name" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The name of the tag; must be a valid Git tag name.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="revision" type="xs:integer">
+				<xs:annotation>
+					<xs:documentation>
+						The revision which should be tagged.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="message-revision" type="xs:integer">
+				<xs:annotation>
+					<xs:documentation>
+						The revision whose message will be used as content for the tag.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="FixesType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains fix-ups for commit messages.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="fix" type="FixType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="FixType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains information for a fix-up of a commit message.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="revision" type="xs:integer">
+				<xs:annotation>
+					<xs:documentation>
+						The revision whose message should be fixed.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="message" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>
+						The new commit message.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CommittersType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains information for all authors of Subversion commits whose commits
+				will be processed.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="committer" type="CommitterType" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="FiltersType">
+		<xs:annotation>
+			<xs:documentation>
+				Contains filters for paths which should not be committed to Git.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="filter" type="xs:string" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>
+						Regular expression for a path, which, if it matches the regular expression,
+						will not be committed to Git.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:element name="configuration" type="ConfigurationType"/>
+
+</xs:schema>
