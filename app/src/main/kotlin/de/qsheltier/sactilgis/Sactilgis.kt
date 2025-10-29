@@ -196,7 +196,7 @@ fun main(vararg arguments: String) {
 					.setAuthor(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId))
 					.setCommitter((committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it })
 					.setMessage(commitMessage)
-					.setSign(configuration.general.signCommits == true)
+					.setSign(false)
 					.call()
 				revisionCommits[revision to branch] = commit
 				storeCommitInState(stateDirectory, revision, branch, commit)
@@ -209,7 +209,7 @@ fun main(vararg arguments: String) {
 						.setName(tag.name)
 						.setMessage(tagLogEntry.message)
 						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId))
-						.setAnnotated(true).setSigned(configuration.general.signCommits == true).call()
+						.setAnnotated(true).setSigned(false).call()
 				}
 			}
 			processedRevisionCount++

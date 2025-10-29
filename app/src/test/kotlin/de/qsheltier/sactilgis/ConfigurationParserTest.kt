@@ -119,18 +119,6 @@ class ConfigurationParserTest {
 	}
 
 	@Test
-	fun `sign-commits can be parsed`() {
-		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
-			<configuration>
-				<general>
-					<sign-commits>true</sign-commits>
-				</general>
-			</configuration>
-			""", Configuration::class.java)
-		assertThat(configuration.general.signCommits, equalTo(true))
-	}
-
-	@Test
 	fun `last revision can be parsed`() {
 		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
 			<configuration>

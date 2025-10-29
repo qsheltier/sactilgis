@@ -73,9 +73,6 @@ timezone
 ignore-global-gitignore-file
 : If `true`, a globally configured `.gitignore` file (configured by `core.excludesFile` using `git config`) will be ignored when commits are created. Setting this to `false` may lead to repositories with all files defined in your `.gitignore` file missing which may or may not be the intended consequence. As I currently consider the use of sactilgis to be a matter of keeping history intact as much as possible, I would recommend setting this to `true`.
 
-sign-commits
-: If `true`, all Git commits and tags will be signed. The necessary configuration (e.g. the user’s signing key) have to be configured outside sactilgis.
-
 last-revision
 : If set, the Subversion repository will only be processed up to this revision.
 

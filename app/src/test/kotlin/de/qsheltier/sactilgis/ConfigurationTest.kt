@@ -133,22 +133,6 @@ class ConfigurationTest {
 	}
 
 	@Test
-	fun `merge overwrites sign-commits flag`() {
-		val oldConfiguration = Configuration(general = General(signCommits = true))
-		val newConfiguration = Configuration(general = General(signCommits = false))
-		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.general.signCommits, equalTo(false))
-	}
-
-	@Test
-	fun `merge does not overwrite sign-commits flag when new flag is null`() {
-		val oldConfiguration = Configuration(general = General(signCommits = true))
-		val newConfiguration = Configuration(general = General(signCommits = null))
-		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.general.signCommits, equalTo(true))
-	}
-
-	@Test
 	fun `merge overwrites last revision`() {
 		val oldConfiguration = Configuration(general = General(lastRevision = 1234))
 		val newConfiguration = Configuration(general = General(lastRevision = 2345))
