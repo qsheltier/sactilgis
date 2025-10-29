@@ -264,12 +264,12 @@ private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnR
 	}
 }
 
-private fun Long.toDurationString() = listOf(TimeUnit.DAYS to Int.MAX_VALUE, TimeUnit.HOURS to 24, TimeUnit.MINUTES to 60, TimeUnit.SECONDS to 60)
-	.map { (this / it.first.toMillis(1)) % it.second }
-	.dropWhile { it == 0L }
-	.ifEmpty { listOf(0L) }
-	.let { if (it.size < 2) (listOf(0L) + it) else it }
-	.joinToString(separator = ":") { "%02d".format(it) }
+private fun Long.toDurationString() = listOf(TimeUnit.DAYS to "d" to Int.MAX_VALUE, TimeUnit.HOURS to "h" to 24, TimeUnit.MINUTES to "m" to 60, TimeUnit.SECONDS to "s" to 60)
+	.map { (this / it.first.first.toMillis(1)) % it.second to it.first.second}
+	.dropWhile { it.first == 0L }
+	.take(2)
+	.ifEmpty { listOf(0L to "s") }
+	.joinToString(separator = " ") { "%d%s".format(it.first, it.second) }
 
 private fun String.replaceLineBreaks() = replace(Regex("\\\\n"), "\n")
 
