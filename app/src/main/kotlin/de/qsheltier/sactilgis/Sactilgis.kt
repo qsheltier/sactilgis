@@ -51,7 +51,7 @@ fun main(vararg arguments: String) {
 	val branchDefinitions = configuration.branches.associate { branch -> branch.name to BranchDefinition(*branch.revisionPaths.map { it.revision to it.path }.toTypedArray()) }
 	val repositoryScanner = RepositoryScanner(svnRepository)
 	branchDefinitions.forEach(repositoryScanner::addBranch)
-	val repositoryInformation = repositoryScanner.identifyBranches()
+	val repositoryInformation = repositoryScanner.identifyBranches { revision -> print("(@$revision)\r")}
 	val fileFilters = configuration.filters.map(Filter::path).map(::Regex).map { regex -> { file: String -> regex.containsMatchIn(file) } }
 	logger.info("RepositoryInformation: $repositoryInformation")
 

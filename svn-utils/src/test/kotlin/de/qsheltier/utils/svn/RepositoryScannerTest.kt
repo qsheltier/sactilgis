@@ -38,6 +38,14 @@ class RepositoryScannerTest {
 	}
 
 	@Test
+	fun `repository scanner calls progress handler with correct revisions`() {
+		createTwoSimpleRepositories()
+		val revisions = mutableListOf<Long>()
+		repositoryScanner.identifyBranches(revisions::add)
+		assertThat(revisions, contains(1, 2, 3, 4))
+	}
+
+	@Test
 	fun `repository scanner can handle outside-of-any-project revisions`() {
 		createTwoSimpleRepositories()
 		repositoryScanner.addBranch("p1", BranchDefinition(0L to "/project1"))
