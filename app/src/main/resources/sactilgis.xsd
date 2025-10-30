@@ -166,6 +166,7 @@
 			<xs:element name="merges" type="MergesType" minOccurs="0"/>
 			<xs:element name="tags" type="TagsType" minOccurs="0"/>
 			<xs:element name="fixes" type="FixesType" minOccurs="0"/>
+			<xs:element name="filters" type="FiltersType" minOccurs="0"/>
 		</xs:all>
 	</xs:complexType>
 

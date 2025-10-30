@@ -52,7 +52,8 @@ fun main(vararg arguments: String) {
 	val repositoryScanner = RepositoryScanner(svnRepository)
 	branchDefinitions.forEach(repositoryScanner::addBranch)
 	val repositoryInformation = repositoryScanner.identifyBranches { revision -> print("(@$revision)\r")}
-	val fileFilters = configuration.filters.map(Filter::path).map(::Regex).map { regex -> { file: String -> regex.containsMatchIn(file) } }
+	val fileFilters = configuration.filters.map(stringToFilter)
+	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
 	logger.info("RepositoryInformation: $repositoryInformation")
 
 	val committers = configuration.committers
@@ -179,6 +180,7 @@ fun main(vararg arguments: String) {
 					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.ignoredNotInIndex
 				}.filterNot { it.startsWith(".svn") }
 					.filterNot { file -> fileFilters.any { it(file) } }
+					.filterNot { file -> branchFilters[branch]!!.any { it(file) } }
 			}.also { logger.info("Files to update in Git: $it") }
 			filePatterns.takeIf { it.isNotEmpty() }?.let {
 				printTime("add") {
@@ -216,6 +218,8 @@ fun main(vararg arguments: String) {
 		}
 	}
 }
+
+private val stringToFilter = { filter: Filter -> filter.path.let(::Regex).let { regex -> { file: String -> regex.containsMatchIn(file) } } }
 
 private fun readConfigurationFiles(vararg arguments: String) =
 	arguments.map(::File)

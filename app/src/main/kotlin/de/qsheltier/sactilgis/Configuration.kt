@@ -45,7 +45,8 @@ data class Configuration(
 		val revisionPaths: MutableList<RevisionPath> = mutableListOf(),
 		val merges: MutableList<Merge> = mutableListOf(),
 		val tags: MutableList<Tag> = mutableListOf(),
-		val fixes: MutableList<Fix> = mutableListOf()
+		val fixes: MutableList<Fix> = mutableListOf(),
+		val filters: MutableList<Filter> = mutableListOf(),
 	) {
 
 		data class Origin(

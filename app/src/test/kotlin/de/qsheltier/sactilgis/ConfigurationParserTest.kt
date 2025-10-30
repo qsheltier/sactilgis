@@ -168,6 +168,9 @@ class ConfigurationParserTest {
 								<message>Fixed message</message>
 							</fix>
 						</fixes>
+						<filters>
+							<filter>foo</filter>
+						</filters>
 					</branch>
 				</branches>
 			</configuration>
@@ -178,7 +181,8 @@ class ConfigurationParserTest {
 				mutableListOf(RevisionPath(2345, "/path/to/test")),
 				mutableListOf(Merge(3456, "merge-branch", "merge-tag")),
 				mutableListOf(Tag(4567, "test-tag", 5678)),
-				mutableListOf(Fix(6789, "Fixed message"))
+				mutableListOf(Fix(6789, "Fixed message")),
+				mutableListOf(Filter("foo"))
 			)
 		)))
 	}

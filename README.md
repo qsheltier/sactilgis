@@ -144,6 +144,9 @@ Each branch has a number of features; a name, an optional origin, a list of revi
 			<message>Tëstïng för ümläutß</message>
 		</fix>
 	</fixes>
+	<filters>
+		<filter>\.bak$</filter>
+	</filters>
 </branch>
 ```
 
@@ -224,18 +227,24 @@ revision
 message
 : The new message for this revision.
 
+#### The `filters` section
 
-### The `filters`section
+The `filters` section in a branch has the same syntax and meaning as the [top-level `<filters>` section](#the-filters-section-1), but is restricted to this branch. When filters are defined both here and in the `<general>` section, they will be merged for this branch.
+
+See the [top-level `<filters>` section](#the-filters-section-1) for details on how the filter is applied.
+
+
+### The `filters` section
 
 This section contains filters for files that should be ignored when creating commits.
 
 ```xml
-<filter>.DS_Store</filter>
+<filter>(^|/)\.DS_Store$</filter>
 ```
 
-A filter is a regex string that will be matched against the name of each file (relative to the repository’s root directory) being handled. The regex will match anywhere in the string.
+A filter is a regex string that will be matched against the complete name of each file relative to the repository’s root directory. The regex will match anywhere in the string, unless anchored using `^` or `$`. Note that even on Windows the directory separator is a forward slash, `/`.
 
-An arbitrary amount of filters can be added.
+An arbitrary amount of filters can be added. Some care should be taken to make filters as unambiguous as possible; i.e. `.bak` would prevent ever-present backup files from being committed, but it would also block a file named `material/bakelite.png`.
 
 
 ## Merging Configurations
