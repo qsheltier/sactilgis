@@ -36,7 +36,7 @@ fun main(vararg arguments: String) {
 	configuration.verify()
 
 	val zoneId = (configuration.general.timezone?.let(TimeZone::getTimeZone) ?: TimeZone.getDefault()).toZoneId()
-	val svnUrl = SVNURL.parseURIDecoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
+	val svnUrl = SVNURL.parseURIEncoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
 	val svnRepository = SVNRepositoryFactory.create(svnUrl)
 	configuration.general.subversionAuth?.let { subversionAuth ->
 		subversionAuth.username?.let { username ->
