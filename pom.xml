@@ -37,6 +37,12 @@
 				<scope>test</scope>
 			</dependency>
 			<dependency>
+				<groupId>org.mockito.kotlin</groupId>
+				<artifactId>mockito-kotlin</artifactId>
+				<version>6.1.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
 				<groupId>org.tmatesoft.svnkit</groupId>
 				<artifactId>svnkit</artifactId>
 				<version>1.10.11</version>
@@ -92,6 +98,10 @@
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito.kotlin</groupId>
+			<artifactId>mockito-kotlin</artifactId>
 		</dependency>
 	</dependencies>
 

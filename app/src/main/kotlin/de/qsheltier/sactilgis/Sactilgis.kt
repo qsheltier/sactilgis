@@ -1,7 +1,6 @@
 package de.qsheltier.sactilgis
 
 import com.sun.jna.Platform
-import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.git.createCommit
@@ -10,7 +9,6 @@ import de.qsheltier.utils.git.readCommitCache
 import de.qsheltier.utils.git.storeCommitInCache
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
-import de.qsheltier.utils.svn.defineBranch
 import de.qsheltier.utils.time.toDurationString
 import java.io.File
 import java.util.TimeZone
@@ -21,7 +19,6 @@ import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.PersonIdent
 import org.eclipse.jgit.lib.Ref
-import org.eclipse.jgit.revwalk.RevCommit
 import org.tmatesoft.svn.core.SVNDepth
 import org.tmatesoft.svn.core.SVNURL
 import org.tmatesoft.svn.core.auth.BasicAuthenticationManager
@@ -48,45 +45,25 @@ fun main(vararg arguments: String) {
 			}
 		} ?: throw IllegalStateException("Username and Password not given.")
 	}
-	val branchDefinitions = configuration.branches.associate { branch -> branch.name to defineBranch(*branch.revisionPaths.map { it.revision to it.path }.toTypedArray()) }
 	val repositoryScanner = RepositoryScanner(svnRepository)
-	branchDefinitions.forEach(repositoryScanner::addBranch)
-	val repositoryInformation = repositoryScanner.identifyBranches { revision -> print("(@$revision)\r")}
+	val configuredBranches = configureBranches(configuration, repositoryScanner) { revision -> print("(@$revision)\r") }
 	val fileFilters = configuration.filters.map(stringToFilter)
 	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
-	logger.info("RepositoryInformation: $repositoryInformation")
 
 	val committers = configuration.committers
 		.associate { it.subversionId to PersonIdent(it.name, it.email) }
 		.withDefault { PersonIdent(it, "$it@svn") }
 	val committer = configuration.general.committer?.let { PersonIdent(it.name, it.email) }
 
-	fun findActualRevision(branch: String, revision: Long) =
-		repositoryInformation.branchRevisions[branch]!!.headSet(revision + 1).last()
-
-	val branchRevisionsByTag = configuration.branches.flatMap { branch -> branch.tags.map { it.name to (branch.name to it.revision) } }.toMap()
-
-	fun findActualRevision(tag: String) =
-		branchRevisionsByTag[tag]?.let { findActualRevision(it.first, it.second) }
-
-	fun findBranchByPathAndRevision(path: String, revision: Long) =
-		branchDefinitions.entries.single { entry ->
-			(entry.value.pathAt(revision) == path) || entry.value.pathAt(revision)?.startsWith("$path/") ?: false || (entry.value.pathAt(revision)?.let { path.startsWith("$it/") } ?: false)
-		}.key
-
-	val mergeRevisionsByBranch = configuration.branches.associate { it.name to it.merges.associateBy { it.revision } }
-	val tagRevisionsByBranch = configuration.branches.associate { branch -> branch.name to branch.tags.associateBy { findActualRevision(branch.name, it.revision) } }
-	val fixRevisionsByBranch = configuration.branches.associate { branch -> branch.name to branch.fixes.associateBy { it.revision } }
-	val branchOrigins = configuration.branches.associate { branch -> branch.name to branch.origin }.filterValues { it != null }
-
 	val worklist = Worklist(
-		repositoryInformation.branchRevisions,
-		repositoryInformation.branchCreationPoints.mapValues { entry ->
-			findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second
-		} + branchOrigins.mapValues {
-			it.value!!.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value!!.branch!! to it.value!!.revision!!)
-		},
-		mergeRevisionsByBranch.mapValues { it.value.mapValues { it.value.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value.branch!! to it.value.revision) } }
+		configuredBranches.map { (name, branch) -> name to branch.revisions }.toMap(),
+		configuredBranches
+			.map { (name, branch) -> name to branch.origin }
+			.filter { (_, origin) -> origin != null }
+			.associate { (name, origin) -> name to (origin!!.branchName to origin.revision) },
+		configuredBranches
+			.map { (name, branch) -> name to branch.merges.mapValues { it.value.branch to it.value.revision }.toMap() }
+			.toMap()
 	)
 
 	val workDirectory = File(configuration.general.targetDirectory ?: throw IllegalStateException("No target directory given."))
@@ -123,7 +100,7 @@ fun main(vararg arguments: String) {
 			}
 		}
 		val plan = worklist.createPlan()
-			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: repositoryInformation.latestRevision) }
+			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
 			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
 			.also { logger.info("Plan: $it") }
 		val startTime = System.currentTimeMillis()
@@ -134,20 +111,14 @@ fun main(vararg arguments: String) {
 			print("(${"%.1f".format(100.0 * index / (plan.size - 1))}%)")
 			print("(eta: ${(System.currentTimeMillis() - startTime).let { elapsedTime -> ((elapsedTime / ((index + 1.0) / plan.size)) - elapsedTime).toLong().toDurationString() }})")
 			print("($branch)")
+			val configuredBranch = configuredBranches[branch]!!
 			val svnRevision = SVNRevision.create(revision)
 			if (currentBranch != branch) {
 				if (gitRepository.branchDoesNotExist(branch)) {
-					val originalRevision = repositoryInformation.branchCreationPoints[branch]?.second
-					val startPoint = originalRevision
-						?: branchOrigins[branch]?.tag?.let(::findActualRevision)
-						?: branchOrigins[branch]?.let { findActualRevision(it.branch!!, it.revision!!) }
-					if (startPoint != null) {
-							val startBranch = branchOrigins[branch]?.tag?.let { branchRevisionsByTag[it]!!.first }
-								?: branchOrigins[branch]?.branch
-								?: repositoryInformation.branchCreationPoints[branch]?.let { findBranchByPathAndRevision(it.first, it.second) }
-						print("(from $startBranch @ $startPoint)")
+					if (configuredBranch.origin != null) {
+						print("(from ${configuredBranch.origin.branchName} @ ${configuredBranch.origin.revision})")
 						printTime("create") {
-							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[startPoint to startBranch]!!.name).call()
+							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[configuredBranch.origin.revision to configuredBranch.origin.branchName]!!.name).call()
 						}
 					} else {
 						printTime("orphan") {
@@ -162,7 +133,7 @@ fun main(vararg arguments: String) {
 				currentBranch = branch
 				revert(svnClientManager, workDirectory, svnRevision)
 			}
-			val path = branchDefinitions[branch]!!.pathAt(revision)!!
+			val path = configuredBranch.getPathAt(revision)!!
 			print("($path)")
 			if (path != currentPath) {
 				currentPath = path
@@ -190,23 +161,19 @@ fun main(vararg arguments: String) {
 			}
 			printTime("commit") {
 				val logEntry = simpleSvn.getLogEntry(path, revision)!!
-				val commitMessage = (fixRevisionsByBranch[branch]!![revision]?.message?.replaceLineBreaks() ?: logEntry.message) +
+				val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
 						"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 				val commitAuthor = committers.getValue(logEntry.author)
-				mergeRevisionsByBranch[branch]!![revision]?.let { merge ->
-					val commitId: RevCommit = (merge.tag?.let { branchRevisionsByTag[it]!! }
-						?: run { merge.branch!! to merge.revision })
-						.let { (branch, revision) -> branch to findActualRevision(branch, revision) }
-						.also { (branch, revision) -> print("(merge $branch @ $revision)") }
-						.let { (branch, revision) -> revisionCommits[revision to branch]!! }
-					gitRepository.repository.writeMergeHeads(listOf(commitId))
+				configuredBranch.getMergeAt(revision)?.let { merge ->
+					print("(merge ${merge.branch} @ ${merge.revision})")
+					gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
 				}
 				val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
 				val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
 				revisionCommits[revision to branch] = commit
 				gitRepository.storeCommitInCache(revision, branch, commit)
 			}
-			tagRevisionsByBranch[branch]!![revision]?.let { tag ->
+			configuredBranch.getTagAt(revision)?.let { tag ->
 				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
 				printTime("tag ${tag.name}") {
 					val tagger = PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId)
