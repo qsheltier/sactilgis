@@ -156,6 +156,18 @@ data class Configuration(
 
 }
 
+/**
+ * Merges the configurations in order. The second list is [merged][merge]
+ * into the first, the third list is merged into the resulting list, and so on.
+ *
+ * @param [this] a list of [Configuration] objects
+ * @return A [Configuration] that is a result of repeated [merges][merge]
+ * @throws IllegalStateException if the list of [Configuration]s is empty
+ */
+fun List<Configuration>.merge() =
+	reduceOrNull(Configuration::merge)
+		?: throw IllegalArgumentException("No configuration(s) given.")
+
 private fun <T> Collection<T>.onNotEmpty(action: (Collection<T>) -> Unit) = run {
 	if (isNotEmpty()) {
 		action(this)

@@ -659,4 +659,20 @@ class ConfigurationTest {
 		assertThrows<IllegalStateException>(configuration::verify)
 	}
 
+	@Test
+	fun `extension method merges files in correct order`() {
+		val firstConfiguration = Configuration(filters = mutableListOf(Filter("filter1")))
+		val secondConfiguration = Configuration(filters = mutableListOf(Filter("filter2")))
+		val thirdConfiguration = Configuration(filters = mutableListOf(Filter("filter3")))
+		assertThat(
+			listOf(firstConfiguration, secondConfiguration, thirdConfiguration).merge().filters,
+			contains(Filter("filter1"), Filter("filter2"), Filter("filter3"))
+		)
+	}
+
+	@Test
+	fun `extension method throws exception if list of configurations is empty`() {
+		assertThrows<IllegalArgumentException> { emptyList<Configuration>().merge() }
+	}
+
 }

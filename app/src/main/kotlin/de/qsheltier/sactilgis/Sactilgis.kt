@@ -193,10 +193,6 @@ private fun readConfigurationFiles(vararg arguments: String) =
 		.filter(File::exists)
 		.map { xmlMapper.readValue(it, Configuration::class.java) }
 
-private fun List<Configuration>.merge() =
-	reduceOrNull(Configuration::merge)
-		?: throw IllegalStateException("No configuration(s) given.")
-
 private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
 	printTime("revert") {
 		val statusLogs = mutableListOf<SVNStatus>()
