@@ -8,9 +8,9 @@ import de.qsheltier.utils.git.createCommit
 import de.qsheltier.utils.git.createTag
 import de.qsheltier.utils.git.readCommitCache
 import de.qsheltier.utils.git.storeCommitInCache
-import de.qsheltier.utils.svn.BranchDefinition
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
+import de.qsheltier.utils.svn.defineBranch
 import de.qsheltier.utils.time.toDurationString
 import java.io.File
 import java.util.TimeZone
@@ -48,7 +48,7 @@ fun main(vararg arguments: String) {
 			}
 		} ?: throw IllegalStateException("Username and Password not given.")
 	}
-	val branchDefinitions = configuration.branches.associate { branch -> branch.name to BranchDefinition(*branch.revisionPaths.map { it.revision to it.path }.toTypedArray()) }
+	val branchDefinitions = configuration.branches.associate { branch -> branch.name to defineBranch(*branch.revisionPaths.map { it.revision to it.path }.toTypedArray()) }
 	val repositoryScanner = RepositoryScanner(svnRepository)
 	branchDefinitions.forEach(repositoryScanner::addBranch)
 	val repositoryInformation = repositoryScanner.identifyBranches { revision -> print("(@$revision)\r")}

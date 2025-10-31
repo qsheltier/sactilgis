@@ -4,12 +4,18 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class BranchDefinitionTest {
 
 	@Test
+	fun `empty branch definition is not valid`() {
+		assertThrows<IllegalArgumentException> { defineBranch() }
+	}
+
+	@Test
 	fun `branch information can find path for revision`() {
-		val branchDefinition = BranchDefinition(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
+		val branchDefinition = defineBranch(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
 		assertThat(branchDefinition.pathAt(7), equalTo("/main"))
 		assertThat(branchDefinition.pathAt(17), equalTo("/trunk/main"))
 		assertThat(branchDefinition.pathAt(47), equalTo("/trunk/other/main"))
@@ -17,13 +23,13 @@ class BranchDefinitionTest {
 
 	@Test
 	fun `branch definition returns null for path before first revision`() {
-		val branchDefinition = BranchDefinition(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
+		val branchDefinition = defineBranch(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
 		assertThat(branchDefinition.pathAt(2), nullValue())
 	}
 
 	@Test
 	fun `branch definition returns earliest revision for a path`() {
-		val branchDefinition = BranchDefinition(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
+		val branchDefinition = defineBranch(3L to "/main", 12L to "/trunk/main", 45L to "/trunk/other/main")
 		assertThat(branchDefinition.earliestRevision, equalTo(3L))
 	}
 
