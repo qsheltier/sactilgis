@@ -3,6 +3,7 @@ package de.qsheltier.sactilgis
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Filter
 import de.qsheltier.utils.action.DelayedPeriodicAction
+import de.qsheltier.utils.git.branchDoesNotExist
 import de.qsheltier.utils.git.createCommit
 import de.qsheltier.utils.git.createTag
 import de.qsheltier.utils.git.readCommitCache
@@ -207,9 +208,6 @@ private fun <T : Any> printTime(text: String, action: () -> T): T {
 		print("($text: ${(timeAfter - timeBefore) / 1000.0}s)")
 	}
 }
-
-private fun Git.branchDoesNotExist(branch: String) =
-	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
 
 private val xmlMapper = XmlMapper.builder().addModule(kotlinModule()).build()
 private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {

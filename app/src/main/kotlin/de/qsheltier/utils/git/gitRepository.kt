@@ -51,3 +51,6 @@ fun Git.storeCommitInCache(revision: Long, branch: String, commit: RevCommit) =
 		resolve("commit-cache.txt")
 			.writeText("$revision,${commit.name},$branch\n", options = arrayOf(CREATE, APPEND))
 	}
+
+fun Git.branchDoesNotExist(branch: String) =
+	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
