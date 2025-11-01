@@ -55,17 +55,7 @@ fun main(vararg arguments: String) {
 		.withDefault { PersonIdent(it, "$it@svn") }
 	val committer = configuration.general.committer?.let { PersonIdent(it.name, it.email) }
 
-	val worklist = Worklist(
-		configuredBranches.map { (name, branch) -> name to branch.revisions }.toMap(),
-		configuredBranches
-			.map { (name, branch) -> name to branch.origin }
-			.filter { (_, origin) -> origin != null }
-			.associate { (name, origin) -> name to (origin!!.branchName to origin.revision) },
-		configuredBranches
-			.map { (name, branch) -> name to branch.merges.mapValues { it.value.branch to it.value.revision }.toMap() }
-			.toMap()
-	)
-
+	val worklist = createWorklist(configuredBranches)
 	val workDirectory = File(configuration.general.targetDirectory ?: throw IllegalStateException("No target directory given."))
 	val simpleSvn = SimpleSVN(svnRepository)
 	val svnClientManager = SVNClientManager.newInstance()

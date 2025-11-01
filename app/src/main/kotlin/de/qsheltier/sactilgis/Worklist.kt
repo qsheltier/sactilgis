@@ -63,3 +63,13 @@ class Worklist(private val branchRevisions: Map<String, SortedSet<Long>> = empty
 	private fun findBranchForRevision(revision: Long) = branchRevisions.entries.first { revision in it.value }.key
 
 }
+
+fun createWorklist(configuredBranches: Map<String, ConfiguredBranch>) =
+	Worklist(configuredBranches.map { (name, branch) -> name to branch.revisions }.toMap(),
+		configuredBranches
+			.map { (name, branch) -> name to branch.origin }
+			.filter { (_, origin) -> origin != null }
+			.associate { (name, origin) -> name to (origin!!.branchName to origin.revision) },
+		configuredBranches
+			.map { (name, branch) -> name to branch.merges.mapValues { it.value.branch to it.value.revision }.toMap() }
+			.toMap())
