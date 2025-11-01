@@ -12,6 +12,7 @@ import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
 import de.qsheltier.utils.time.toDurationString
 import java.io.File
+import java.time.ZoneId
 import java.util.TimeZone
 import java.util.logging.FileHandler
 import java.util.logging.Logger
@@ -19,10 +20,13 @@ import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.PersonIdent
-import org.eclipse.jgit.lib.Ref
+import org.koin.core.context.startKoin
+import org.koin.core.parameter.parametersOf
+import org.koin.dsl.module
 import org.tmatesoft.svn.core.SVNDepth
 import org.tmatesoft.svn.core.SVNURL
 import org.tmatesoft.svn.core.auth.BasicAuthenticationManager
+import org.tmatesoft.svn.core.io.SVNRepository
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory
 import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
@@ -33,34 +37,53 @@ import tools.jackson.module.kotlin.kotlinModule
 
 fun main(vararg arguments: String) {
 
-	val configuration = readConfigurationFiles(*arguments).merge()
+	val koin = startKoin {
+		modules(
+			module {
+				single { params -> readConfigurationFiles(*params.get()).merge() }
+				single { (get<Configuration>().general.timezone?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()).toZoneId()!! }
+				single { RepositoryScanner(get()) }
+				single<Map<String, ConfiguredBranch>> { configureBranches(get(), get()) { revision -> print("(@$revision)\r") } }
+				single { SVNURL.parseURIEncoded(get<Configuration>().general.subversionUrl ?: throw IllegalStateException("Subversion URL not set.")) }
+				single {
+					SVNRepositoryFactory.create(get()).apply {
+						get<Configuration>().general.subversionAuth?.let { subversionAuth ->
+							subversionAuth.username?.let { username ->
+								subversionAuth.password?.let { password ->
+									authenticationManager = BasicAuthenticationManager.newInstance(username, password.toCharArray())
+								}
+							} ?: throw IllegalStateException("Username and Password not given.")
+						}
+					}
+				}
+				single { SimpleSVN(get()) }
+				single {
+					SVNClientManager.newInstance().apply {
+						setAuthenticationManager(get<SVNRepository>().authenticationManager)
+					}
+				}
+				single<Worklist> { createWorklist(get<Map<String, ConfiguredBranch>>()) }
+			}
+		)
+	}.koin
+
+	val configuration: Configuration by koin.inject { parametersOf(arrayOf(*arguments)) }
 	configuration.verify()
 
-	val zoneId = (configuration.general.timezone?.let(TimeZone::getTimeZone) ?: TimeZone.getDefault()).toZoneId()
-	val svnUrl = SVNURL.parseURIEncoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
-	val svnRepository = SVNRepositoryFactory.create(svnUrl)
-	configuration.general.subversionAuth?.let { subversionAuth ->
-		subversionAuth.username?.let { username ->
-			subversionAuth.password?.let { password ->
-				svnRepository.authenticationManager = BasicAuthenticationManager.newInstance(username, password.toCharArray())
-			}
-		} ?: throw IllegalStateException("Username and Password not given.")
-	}
-	val repositoryScanner = RepositoryScanner(svnRepository)
-	val configuredBranches = configureBranches(configuration, repositoryScanner) { revision -> print("(@$revision)\r") }
+	val zoneId: ZoneId by koin.inject()
+	val configuredBranches: Map<String, ConfiguredBranch> by koin.inject()
 	val fileFilters = configuration.filters.map(stringToFilter)
 	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
-
 	val committers = configuration.committers
 		.associate { it.subversionId to PersonIdent(it.name, it.email) }
 		.withDefault { PersonIdent(it, "$it@svn") }
 	val committer = configuration.general.committer?.let { PersonIdent(it.name, it.email) }
-
-	val worklist = createWorklist(configuredBranches)
+	val worklist: Worklist by koin.inject()
 	val workDirectory = File(configuration.general.targetDirectory ?: throw IllegalStateException("No target directory given."))
-	val simpleSvn = SimpleSVN(svnRepository)
-	val svnClientManager = SVNClientManager.newInstance()
-	svnClientManager.setAuthenticationManager(svnRepository.authenticationManager)
+	val simpleSvn: SimpleSVN by koin.inject()
+	val svnClientManager: SVNClientManager by koin.inject()
+	val svnUrl: SVNURL by koin.inject()
+
 	try {
 		Git.open(workDirectory).also {
 			printTime("cleanup") {
