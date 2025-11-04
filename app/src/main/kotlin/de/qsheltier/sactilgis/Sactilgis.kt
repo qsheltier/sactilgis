@@ -2,6 +2,7 @@ package de.qsheltier.sactilgis
 
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Filter
+import de.qsheltier.sactilgis.helper.revert
 import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.git.branchDoesNotExist
 import de.qsheltier.utils.git.createCommit
@@ -32,8 +33,6 @@ import org.tmatesoft.svn.core.io.SVNRepository
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory
 import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
-import org.tmatesoft.svn.core.wc.SVNStatus
-import org.tmatesoft.svn.core.wc.SVNStatusType.STATUS_NORMAL
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.dataformat.xml.XmlMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -151,7 +150,9 @@ fun main(vararg arguments: String) {
 					}
 				}
 				currentBranch = branch
-				revert(svnClientManager, workDirectory, svnRevision)
+				printTime("revert") {
+					svnClientManager.revert(workDirectory, svnRevision)
+				}
 			}
 			val path = configuredBranch.getPathAt(revision)!!
 			print("($path)")
@@ -160,7 +161,9 @@ fun main(vararg arguments: String) {
 				printTime("switch") {
 					svnClientManager.updateClient.doSwitch(workDirectory, svnUrl.appendPath(path, false), svnRevision, svnRevision, SVNDepth.INFINITY, false, true)
 				}
-				revert(svnClientManager, workDirectory, svnRevision)
+				printTime("revert") {
+					svnClientManager.revert(workDirectory, svnRevision)
+				}
 			} else {
 				printTime("update") {
 					svnClientManager.updateClient.doUpdate(workDirectory, svnRevision, SVNDepth.INFINITY, false, true)
@@ -212,19 +215,6 @@ private fun readConfigurationFiles(xmlMapper: ObjectMapper, vararg arguments: St
 	arguments.map(::File)
 		.filter(File::exists)
 		.map { xmlMapper.readValue(it, Configuration::class.java) }
-
-private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
-	printTime("revert") {
-		val statusLogs = mutableListOf<SVNStatus>()
-		svnClientManager.statusClient.doStatus(workDirectory, svnRevision, SVNDepth.INFINITY, false, true, false, false, statusLogs::add, null)
-		statusLogs
-			.filterNot { it.file == File(workDirectory, ".git") }
-			.filter { it.isConflicted || (it.treeConflict != null) || (it.contentsStatus != STATUS_NORMAL) || (it.nodeStatus != STATUS_NORMAL) }
-			.map(SVNStatus::getFile)
-			.onEach(File::deleteRecursively)
-		svnClientManager.wcClient.doRevert(arrayOf(workDirectory), SVNDepth.INFINITY, null)
-	}
-}
 
 private fun String.replaceLineBreaks() = replace(Regex("\\\\n"), "\n")
 
