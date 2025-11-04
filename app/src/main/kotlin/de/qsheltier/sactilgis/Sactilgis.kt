@@ -10,7 +10,9 @@ import de.qsheltier.utils.git.readCommitCache
 import de.qsheltier.utils.git.storeCommitInCache
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
+import de.qsheltier.utils.time.ProgressTimeTracker
 import de.qsheltier.utils.time.toDurationString
+import de.qsheltier.utils.time.track
 import java.io.File
 import java.time.ZoneId
 import java.util.TimeZone
@@ -117,15 +119,17 @@ fun main(vararg arguments: String) {
 		}
 		val plan = worklist.createPlan()
 			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
+		val alreadyProcessed = plan.count { (branch, revision) -> (revision to branch) in revisionCommits }
+		val progressTimeTracker = ProgressTimeTracker(plan.size, alreadyProcessed)
+		val remainingRevisions = plan
 			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
 			.also { logger.info("Plan: $it") }
-		val startTime = System.currentTimeMillis()
-		plan.forEachIndexed { index, (branch, revision) ->
+		progressTimeTracker.track(remainingRevisions) { (branch, revision) ->
 			logger.info("Processing $branch at Revision $revision")
 			print("${"%tT.%<tL".format(System.currentTimeMillis())} ")
 			print("(@$revision)")
-			print("(${"%.1f".format(100.0 * index / (plan.size - 1))}%)")
-			print("(eta: ${(System.currentTimeMillis() - startTime).let { elapsedTime -> ((elapsedTime / ((index + 1.0) / plan.size)) - elapsedTime).toLong().toDurationString() }})")
+			print("(${"%.1f".format(progress * 100)}%)")
+			print("(time: ${elapsed.toDurationString()}/${estimated.toDurationString()})")
 			print("($branch)")
 			val configuredBranch = configuredBranches[branch]!!
 			val svnRevision = SVNRevision.create(revision)

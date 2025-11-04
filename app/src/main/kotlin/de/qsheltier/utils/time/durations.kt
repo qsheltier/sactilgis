@@ -1,6 +1,10 @@
 package de.qsheltier.utils.time
 
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.DurationUnit.MILLISECONDS
+
+fun Duration.toDurationString() = if (this == Duration.INFINITE) "∞" else toLong(MILLISECONDS).toDurationString()
 
 fun Long.toDurationString() = units
 	.map { ((this / it.timeUnit.toMillis(1)) % it.range) to it.sign }
