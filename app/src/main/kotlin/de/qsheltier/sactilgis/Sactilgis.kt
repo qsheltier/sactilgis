@@ -32,6 +32,7 @@ import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
 import org.tmatesoft.svn.core.wc.SVNStatus
 import org.tmatesoft.svn.core.wc.SVNStatusType.STATUS_NORMAL
+import tools.jackson.databind.ObjectMapper
 import tools.jackson.dataformat.xml.XmlMapper
 import tools.jackson.module.kotlin.kotlinModule
 
@@ -40,7 +41,7 @@ fun main(vararg arguments: String) {
 	val koin = startKoin {
 		modules(
 			module {
-				single { params -> readConfigurationFiles(*params.get()).merge() }
+				single { params -> readConfigurationFiles(get(), *params.get()).merge() }
 				single { (get<Configuration>().general.timezone?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()).toZoneId()!! }
 				single { RepositoryScanner(get()) }
 				single<Map<String, ConfiguredBranch>> { configureBranches(get(), get()) { revision -> print("(@$revision)\r") } }
@@ -63,6 +64,7 @@ fun main(vararg arguments: String) {
 					}
 				}
 				single<Worklist> { createWorklist(get<Map<String, ConfiguredBranch>>()) }
+				single<ObjectMapper> { XmlMapper.builder().addModule(kotlinModule()).build() }
 			}
 		)
 	}.koin
@@ -202,7 +204,7 @@ fun main(vararg arguments: String) {
 
 private val stringToFilter = { filter: Filter -> filter.path.let(::Regex).let { regex -> { file: String -> regex.containsMatchIn(file) } } }
 
-private fun readConfigurationFiles(vararg arguments: String) =
+private fun readConfigurationFiles(xmlMapper: ObjectMapper, vararg arguments: String) =
 	arguments.map(::File)
 		.filter(File::exists)
 		.map { xmlMapper.readValue(it, Configuration::class.java) }
@@ -232,7 +234,6 @@ private fun <T : Any> printTime(text: String, action: () -> T): T {
 	}
 }
 
-private val xmlMapper = XmlMapper.builder().addModule(kotlinModule()).build()
 private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {
 	System.setProperty("java.util.logging.SimpleFormatter.format", "%tF %<tT %5\$s%n")
 	addHandler(FileHandler("./sactilgis.log").apply { this.formatter = SimpleFormatter() })
