@@ -2,13 +2,13 @@ package de.qsheltier.sactilgis
 
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Filter
+import de.qsheltier.sactilgis.helper.branchDoesNotExist
+import de.qsheltier.sactilgis.helper.createCommit
+import de.qsheltier.sactilgis.helper.createTag
+import de.qsheltier.sactilgis.helper.readCommitCache
 import de.qsheltier.sactilgis.helper.revert
+import de.qsheltier.sactilgis.helper.storeCommitInCache
 import de.qsheltier.utils.action.DelayedPeriodicAction
-import de.qsheltier.utils.git.branchDoesNotExist
-import de.qsheltier.utils.git.createCommit
-import de.qsheltier.utils.git.createTag
-import de.qsheltier.utils.git.readCommitCache
-import de.qsheltier.utils.git.storeCommitInCache
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
 import de.qsheltier.utils.time.ProgressTimeTracker

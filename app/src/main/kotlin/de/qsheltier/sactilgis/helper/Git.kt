@@ -1,7 +1,6 @@
-package de.qsheltier.utils.git
+package de.qsheltier.sactilgis.helper
 
-import java.nio.file.StandardOpenOption.APPEND
-import java.nio.file.StandardOpenOption.CREATE
+import java.nio.file.StandardOpenOption
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.useLines
@@ -49,7 +48,7 @@ fun Git.storeCommitInCache(revision: Long, branch: String, commit: RevCommit) =
 	with(repository.directory.toPath().resolve("sactilgis")) {
 		createDirectories()
 		resolve("commit-cache.txt")
-			.writeText("$revision,${commit.name},$branch\n", options = arrayOf(CREATE, APPEND))
+			.writeText("$revision,${commit.name},$branch\n", options = arrayOf(StandardOpenOption.CREATE, StandardOpenOption.APPEND))
 	}
 
 fun Git.branchDoesNotExist(branch: String) =
