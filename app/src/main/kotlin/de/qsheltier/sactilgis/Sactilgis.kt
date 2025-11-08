@@ -86,6 +86,8 @@ fun main(vararg arguments: String) {
 	val simpleSvn: SimpleSVN by koin.inject()
 	val svnClientManager: SVNClientManager by koin.inject()
 	val svnUrl: SVNURL by koin.inject()
+	val plan = worklist.createPlan()
+		.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
 
 	try {
 		Git.open(workDirectory).also {
@@ -100,7 +102,8 @@ fun main(vararg arguments: String) {
 		printTime("update") {
 			svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
 		}
-		Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch("main").call()
+		val firstBranchName = plan.first().first
+		Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch(firstBranchName).call()
 	}.use { gitRepository ->
 		if (configuration.general.ignoreGlobalGitIgnoreFile != false) {
 			gitRepository.repository.config.setString("core", null, "excludesFile", if (Platform.isWindows()) "NUL" else "/dev/null")
@@ -116,8 +119,6 @@ fun main(vararg arguments: String) {
 				gitRepository.gc().call()
 			}
 		}
-		val plan = worklist.createPlan()
-			.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
 		val alreadyProcessed = plan.count { (branch, revision) -> (revision to branch) in revisionCommits }
 		val progressTimeTracker = ProgressTimeTracker(plan.size, alreadyProcessed)
 		val remainingRevisions = plan

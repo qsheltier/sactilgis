@@ -150,10 +150,6 @@ Each branch has a number of features; a name, an optional origin, a list of revi
 </branch>
 ```
 
-The first branch in your `branches` section needs to be the one in your repository that the first commit you will be processing belongs to. For most repositories, this should be the main branch.
-
-At the moment, the requirement that the first branch has to be named “main” is hard-coded.
-
 This sections needs to be repeated for every branch you want to transfer into a Git repository.
 
 #### The `origin` section
