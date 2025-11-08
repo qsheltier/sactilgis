@@ -154,19 +154,21 @@ fun main(vararg arguments: String) {
 					svnClientManager.updateClient.doUpdate(workDirectory, svnRevision, SVNDepth.INFINITY, false, true)
 				}
 			}
-			val filePatterns = printTime("status") {
+			printTime("status") {
 				gitRepository.status().call().let { status ->
 					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.ignoredNotInIndex
-				}.filterNot { it.startsWith(".svn") }
-					.filterNot { file -> fileFilters.any { it(file) } }
-					.filterNot { file -> branchFilters[branch]!!.any { it(file) } }
-			}.also { logger.info("Files to update in Git: $it") }
-			filePatterns.takeIf { it.isNotEmpty() }?.let {
-				printTime("add") {
-					gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
-					gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(false).call()
 				}
 			}
+				.filterNot { it.startsWith(".svn") }
+				.filterNot { file -> fileFilters.any { it(file) } }
+				.filterNot { file -> branchFilters[branch]!!.any { it(file) } }
+				.also { logger.info("Files to update in Git: $it") }
+				.takeIf { it.isNotEmpty() }?.let {
+					printTime("add") {
+						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
+						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(false).call()
+					}
+				}
 			printTime("commit") {
 				val logEntry = simpleSvn.getLogEntry(path, revision)!!
 				val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
