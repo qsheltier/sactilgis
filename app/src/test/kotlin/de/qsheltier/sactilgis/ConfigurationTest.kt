@@ -210,7 +210,7 @@ class ConfigurationTest {
 	}
 
 	@Test
-	fun `branches are merged by copying from the new configuration`() {
+	fun `merged configuration contains all branches with unique names`() {
 		val oldConfiguration = Configuration().apply {
 			branches += listOf(
 				Branch().apply { name = "branch1" },
@@ -224,7 +224,26 @@ class ConfigurationTest {
 			)
 		}
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.branches.map(Branch::name), contains("branch3", "branch4"))
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2", "branch3", "branch4"))
+	}
+
+	@Test
+	fun `newer branches definitions replace older branch definitions`() {
+		val oldConfiguration = Configuration().apply {
+			branches += listOf(
+				Branch().apply { name = "branch1" },
+				Branch().apply { name = "branch2" },
+			)
+		}
+		val newConfiguration = Configuration().apply {
+			branches += listOf(
+				Branch().apply { name = "branch1"; origin = Origin("copy") },
+				Branch().apply { name = "branch3" },
+			)
+		}
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2", "branch3"))
+		assertThat(mergedConfiguration.branches.single { it.name == "branch1" }.origin, equalTo(Origin("copy")))
 	}
 
 	@Test
@@ -237,7 +256,7 @@ class ConfigurationTest {
 		}
 		val newConfiguration = Configuration()
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.branches.map(Branch::name), contains("branch1", "branch2"))
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2"))
 	}
 
 	@Test
