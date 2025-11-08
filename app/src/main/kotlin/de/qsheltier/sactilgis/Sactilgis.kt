@@ -2,12 +2,12 @@ package de.qsheltier.sactilgis
 
 import com.sun.jna.Platform
 import de.qsheltier.sactilgis.Configuration.Filter
-import de.qsheltier.sactilgis.helper.branchDoesNotExist
 import de.qsheltier.sactilgis.helper.createCommit
 import de.qsheltier.sactilgis.helper.createTag
 import de.qsheltier.sactilgis.helper.readCommitCache
 import de.qsheltier.sactilgis.helper.revert
 import de.qsheltier.sactilgis.helper.storeCommitInCache
+import de.qsheltier.sactilgis.helper.switchBranch
 import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
@@ -133,26 +133,11 @@ fun main(vararg arguments: String) {
 			val configuredBranch = configuredBranches[branch]!!
 			val svnRevision = SVNRevision.create(revision)
 			if (currentBranch != branch) {
-				if (gitRepository.branchDoesNotExist(branch)) {
-					if (configuredBranch.origin != null) {
-						print("(from ${configuredBranch.origin.branchName} @ ${configuredBranch.origin.revision})")
-						printTime("create") {
-							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[configuredBranch.origin.revision to configuredBranch.origin.branchName]!!.name).call()
-						}
-					} else {
-						printTime("orphan") {
-							gitRepository.checkout().setName(branch).setOrphan(true).call()
-						}
-					}
-				} else {
-					printTime("checkout") {
-						gitRepository.checkout().setName(branch).call()
-					}
-				}
-				currentBranch = branch
+				gitRepository.switchBranch(branch, configuredBranch, revisionCommits, ::printTime)
 				printTime("revert") {
 					svnClientManager.revert(workDirectory, svnRevision)
 				}
+				currentBranch = branch
 			}
 			val path = configuredBranch.getPathAt(revision)!!
 			print("($path)")

@@ -1,5 +1,6 @@
 package de.qsheltier.sactilgis.helper
 
+import de.qsheltier.sactilgis.ConfiguredBranch
 import java.nio.file.StandardOpenOption
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -53,3 +54,22 @@ fun Git.storeCommitInCache(revision: Long, branch: String, commit: RevCommit) =
 
 fun Git.branchDoesNotExist(branch: String) =
 	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
+
+fun Git.switchBranch(branch: String, configuredBranch: ConfiguredBranch, revisionCommits: MutableMap<Pair<Long, String>, RevCommit>, printTime: (String, action: () -> Unit) -> Unit) {
+	if (branchDoesNotExist(branch)) {
+		if (configuredBranch.origin != null) {
+			print("(from ${configuredBranch.origin.branchName} @ ${configuredBranch.origin.revision})")
+			printTime("create") {
+				checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[configuredBranch.origin.revision to configuredBranch.origin.branchName]!!.name).call()
+			}
+		} else {
+			printTime("orphan") {
+				checkout().setName(branch).setOrphan(true).call()
+			}
+		}
+	} else {
+		printTime("checkout") {
+			checkout().setName(branch).call()
+		}
+	}
+}
