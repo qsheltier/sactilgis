@@ -142,13 +142,13 @@ fun main(vararg arguments: String) {
 			val path = configuredBranch.getPathAt(revision)!!
 			print("($path)")
 			if (path != currentPath) {
-				currentPath = path
 				printTime("switch") {
-					svnClientManager.updateClient.doSwitch(workDirectory, svnUrl.appendPath(path, false), svnRevision, svnRevision, SVNDepth.INFINITY, false, true)
+					svnClientManager.switchBranch(workDirectory, svnUrl, path, svnRevision)
 				}
 				printTime("revert") {
 					svnClientManager.revert(workDirectory, svnRevision)
 				}
+				currentPath = path
 			} else {
 				printTime("update") {
 					svnClientManager.updateClient.doUpdate(workDirectory, svnRevision, SVNDepth.INFINITY, false, true)

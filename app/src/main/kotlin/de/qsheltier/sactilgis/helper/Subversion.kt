@@ -2,6 +2,7 @@ package de.qsheltier.sactilgis.helper
 
 import java.io.File
 import org.tmatesoft.svn.core.SVNDepth
+import org.tmatesoft.svn.core.SVNURL
 import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
 import org.tmatesoft.svn.core.wc.SVNStatus
@@ -16,4 +17,8 @@ fun SVNClientManager.revert(workDirectory: File, svnRevision: SVNRevision) {
 		.map(SVNStatus::getFile)
 		.onEach(File::deleteRecursively)
 	this.wcClient.doRevert(arrayOf(workDirectory), SVNDepth.INFINITY, null)
+}
+
+fun SVNClientManager.switchBranch(workDirectory: File, svnUrl: SVNURL, path: String, svnRevision: SVNRevision) {
+	updateClient.doSwitch(workDirectory, svnUrl.appendPath(path, false), svnRevision, svnRevision, SVNDepth.INFINITY, false, true)
 }
