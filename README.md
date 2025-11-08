@@ -22,7 +22,7 @@ sactilgis comes with its own Maven wrapper, so building it should be as easy as:
 
 After that, a nice, big JAR file will have been dropped in `app/target/`.
 
-    # java -jar app/target/app-1-SNAPSHOT-jar-with-dependencies.jar my-configuration.xml
+    # java -jar app/target/app-3-jar-with-dependencies.jar my-configuration.xml
 
 And already your conversion should be underway!
 
