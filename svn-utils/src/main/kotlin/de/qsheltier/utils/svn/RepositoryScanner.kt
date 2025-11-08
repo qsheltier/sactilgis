@@ -10,14 +10,14 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 		branchDefinitions[name] = branchDefinition
 	}
 
-	fun identifyBranches(): RepositoryInformation {
+	fun identifyBranches(progressHandler: (revision: Long) -> Unit = {}): RepositoryInformation {
 		val branchRevisions = mutableMapOf<String, TreeSet<Long>>()
 		val branchCreationPoints = mutableMapOf<String, Pair<String, Long>>()
 		val latestRevision = svnRepository.latestRevision
 
 		svnRepository.log(arrayOf("/"), 1, -1, true, false) { logEntry ->
 			val revision = logEntry.revision
-			print("(@$revision)\r")
+			progressHandler(revision)
 			logEntry
 				.changedPaths.keys
 				.mapNotNull { path -> findBranchByPathAndRevision(path, revision) }
@@ -39,7 +39,6 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 					}
 				}
 		}
-		print("\u000b")
 
 		return RepositoryInformation(latestRevision, branchRevisions, branchCreationPoints)
 	}
@@ -65,7 +64,7 @@ class RepositoryScanner(private val svnRepository: SVNRepository) {
 
 }
 
-data class RepositoryInformation(val latestRevision: Long, val brachRevisions: Map<String, SortedSet<Long>>, val branchCreationPoints: Map<String, Pair<String, Long>>)
+data class RepositoryInformation(val latestRevision: Long, val branchRevisions: Map<String, SortedSet<Long>>, val branchCreationPoints: Map<String, Pair<String, Long>>)
 
 private operator fun Pair<Long, Long>.contains(value: Long) =
 	if (second != -1L) {

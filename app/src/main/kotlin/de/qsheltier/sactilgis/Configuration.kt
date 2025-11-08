@@ -1,11 +1,12 @@
 package de.qsheltier.sactilgis
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.fasterxml.jackson.databind.util.StdConverter
+import com.fasterxml.jackson.annotation.JsonValue
 import de.qsheltier.sactilgis.Configuration.Branch.Merge
 import de.qsheltier.sactilgis.Configuration.Branch.Origin
 import de.qsheltier.sactilgis.Configuration.Branch.Tag
+import tools.jackson.databind.annotation.JsonDeserialize
+import tools.jackson.databind.util.StdConverter
 
 data class Configuration(
 	val general: General = General(),
@@ -15,45 +16,42 @@ data class Configuration(
 ) {
 
 	data class General(
-		@JsonProperty("subversion-url")
+		@param:JsonProperty("subversion-url")
 		var subversionUrl: String? = null,
-		@JsonProperty("subversion-auth")
+		@param:JsonProperty("subversion-auth")
 		var subversionAuth: SubversionAuth? = null,
-		@JsonProperty("committer")
 		var committer: Committer? = null,
-		@JsonProperty("target-directory")
+		@param:JsonProperty("target-directory")
 		var targetDirectory: String? = null,
-		@JsonProperty("use-commit-date-from-entry")
+		@param:JsonProperty("use-commit-date-from-entry")
 		var useCommitDateFromEntry: Boolean? = null,
-		@JsonProperty("ignore-global-gitignore-file")
+		@param:JsonProperty("timezone")
+		var timezone: String? = null,
+		@param:JsonProperty("ignore-global-gitignore-file")
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
-		@JsonProperty("sign-commits")
-		var signCommits: Boolean? = null
+		@param:JsonProperty("last-revision")
+		var lastRevision: Long? = null,
 	)
 
 	data class SubversionAuth(
-		@JsonProperty("username")
 		var username: String? = null,
-		@JsonProperty("password")
 		var password: String? = null
 	)
 
-	class Branch {
-
-		var name: String = ""
-		var origin: Origin? = null
-		@JsonProperty("revision-paths")
-		val revisionPaths: MutableList<RevisionPath> = mutableListOf()
-		val merges: MutableList<Merge> = mutableListOf()
-		val tags: MutableList<Tag> = mutableListOf()
-		val fixes: MutableList<Fix> = mutableListOf()
+	data class Branch(
+		var name: String = "",
+		var origin: Origin? = null,
+		@param:JsonProperty("revision-paths")
+		val revisionPaths: MutableList<RevisionPath> = mutableListOf(),
+		val merges: MutableList<Merge> = mutableListOf(),
+		val tags: MutableList<Tag> = mutableListOf(),
+		val fixes: MutableList<Fix> = mutableListOf(),
+		val filters: MutableList<Filter> = mutableListOf(),
+	) {
 
 		data class Origin(
-			@JsonProperty("tag")
 			var tag: String? = null,
-			@JsonProperty("branch")
 			var branch: String? = null,
-			@JsonProperty("revision")
 			var revision: Long? = null,
 		)
 
@@ -65,50 +63,43 @@ data class Configuration(
 				}
 				return value!!.toLong()
 			}
+
 		}
 
-		class RevisionPath {
-
-			@JsonDeserialize(converter = RevisionConverter::class)
-			var revision: Long = 0
+		data class RevisionPath(
+			@param:JsonDeserialize(converter = RevisionConverter::class)
+			var revision: Long = 0,
 			var path: String = ""
+		)
 
-		}
-
-		class Merge {
-
-			var revision: Long = 0
-			var branch: String? = null
+		data class Merge(
+			var revision: Long = 0,
+			var branch: String? = null,
 			var tag: String? = null
+		)
 
-		}
-
-		class Tag {
-
-			var revision: Long = 0
-			var name: String = ""
-			@JsonProperty("message-revision")
+		data class Tag(
+			var revision: Long = 0,
+			var name: String = "",
+			@param:JsonProperty("message-revision")
 			var messageRevision: Long = 0
+		)
 
-		}
-
-		class Fix {
-
-			var revision: Long = 0
+		data class Fix(
+			var revision: Long = 0,
 			var message: String = ""
-
-		}
+		)
 
 	}
 
 	data class Committer(
-		@get:JsonProperty("id")
+		@param:JsonProperty("id")
 		var subversionId: String = "",
 		var name: String = "",
 		var email: String = ""
 	)
 
-	data class Filter(var path: String = "")
+	data class Filter(@JsonValue var path: String = "")
 
 	fun merge(configuration: Configuration): Configuration {
 		val mergedConfiguration = Configuration()
@@ -117,10 +108,13 @@ data class Configuration(
 		mergedConfiguration.general.committer = configuration.general.committer ?: general.committer
 		mergedConfiguration.general.targetDirectory = configuration.general.targetDirectory ?: general.targetDirectory
 		mergedConfiguration.general.useCommitDateFromEntry = configuration.general.useCommitDateFromEntry ?: general.useCommitDateFromEntry
+		mergedConfiguration.general.timezone = configuration.general.timezone ?: general.timezone
 		mergedConfiguration.general.ignoreGlobalGitIgnoreFile = configuration.general.ignoreGlobalGitIgnoreFile ?: general.ignoreGlobalGitIgnoreFile
-		mergedConfiguration.general.signCommits = configuration.general.signCommits ?: general.signCommits
+		mergedConfiguration.general.lastRevision = configuration.general.lastRevision ?: general.lastRevision
 		mergedConfiguration.committers += committers.filterNot { it.subversionId in configuration.committers.map(Committer::subversionId) } + configuration.committers
-		mergedConfiguration.branches += configuration.branches.takeIf(List<*>::isNotEmpty) ?: branches
+		mergedConfiguration.branches += branches.filterNot { oldBranch ->
+			configuration.branches.any { newBranch -> newBranch.name == oldBranch.name }
+		} + configuration.branches
 		mergedConfiguration.filters += filters + configuration.filters
 		return mergedConfiguration
 	}
@@ -163,6 +157,18 @@ data class Configuration(
 	}
 
 }
+
+/**
+ * Merges the configurations in order. The second list is [merged][merge]
+ * into the first, the third list is merged into the resulting list, and so on.
+ *
+ * @param [this] a list of [Configuration] objects
+ * @return A [Configuration] that is a result of repeated [merges][merge]
+ * @throws IllegalStateException if the list of [Configuration]s is empty
+ */
+fun List<Configuration>.merge() =
+	reduceOrNull(Configuration::merge)
+		?: throw IllegalArgumentException("No configuration(s) given.")
 
 private fun <T> Collection<T>.onNotEmpty(action: (Collection<T>) -> Unit) = run {
 	if (isNotEmpty()) {

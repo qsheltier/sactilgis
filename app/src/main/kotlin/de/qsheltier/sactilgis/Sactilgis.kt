@@ -1,93 +1,94 @@
 package de.qsheltier.sactilgis
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.sun.jna.Platform
-import de.qsheltier.sactilgis.Configuration.Branch
 import de.qsheltier.sactilgis.Configuration.Filter
-import de.qsheltier.utils.svn.BranchDefinition
+import de.qsheltier.sactilgis.helper.createCommit
+import de.qsheltier.sactilgis.helper.createTag
+import de.qsheltier.sactilgis.helper.readCommitCache
+import de.qsheltier.sactilgis.helper.revert
+import de.qsheltier.sactilgis.helper.storeCommitInCache
+import de.qsheltier.sactilgis.helper.switchBranch
+import de.qsheltier.utils.action.DelayedPeriodicAction
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
+import de.qsheltier.utils.time.ProgressTimeTracker
+import de.qsheltier.utils.time.toDurationString
+import de.qsheltier.utils.time.track
 import java.io.File
-import java.util.concurrent.TimeUnit
+import java.time.ZoneId
+import java.util.TimeZone
 import java.util.logging.FileHandler
 import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.PersonIdent
-import org.eclipse.jgit.lib.Ref
-import org.eclipse.jgit.lib.Repository
-import org.eclipse.jgit.revwalk.RevCommit
+import org.koin.core.context.startKoin
+import org.koin.core.parameter.parametersOf
+import org.koin.dsl.module
 import org.tmatesoft.svn.core.SVNDepth
 import org.tmatesoft.svn.core.SVNURL
 import org.tmatesoft.svn.core.auth.BasicAuthenticationManager
+import org.tmatesoft.svn.core.io.SVNRepository
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory
 import org.tmatesoft.svn.core.wc.SVNClientManager
 import org.tmatesoft.svn.core.wc.SVNRevision
-import org.tmatesoft.svn.core.wc.SVNStatus
-import org.tmatesoft.svn.core.wc.SVNStatusType.STATUS_NORMAL
+import tools.jackson.databind.ObjectMapper
+import tools.jackson.dataformat.xml.XmlMapper
+import tools.jackson.module.kotlin.kotlinModule
 
 fun main(vararg arguments: String) {
 
-	val configuration = arguments.map(::File).filter(File::exists)
-		.map { xmlMapper.readValue(it, Configuration::class.java) }
-		.reduceOrNull { mergedConfiguration, configuration -> mergedConfiguration.merge(configuration) }
-		?: throw IllegalStateException("No configuration(s) given.")
+	val koin = startKoin {
+		modules(
+			module {
+				single { params -> readConfigurationFiles(get(), *params.get()).merge() }
+				single { (get<Configuration>().general.timezone?.let { TimeZone.getTimeZone(it) } ?: TimeZone.getDefault()).toZoneId()!! }
+				single { RepositoryScanner(get()) }
+				single<Map<String, ConfiguredBranch>> { configureBranches(get(), get()) { revision -> print("(@$revision)\r") } }
+				single { SVNURL.parseURIEncoded(get<Configuration>().general.subversionUrl ?: throw IllegalStateException("Subversion URL not set.")) }
+				single {
+					SVNRepositoryFactory.create(get()).apply {
+						get<Configuration>().general.subversionAuth?.let { subversionAuth ->
+							subversionAuth.username?.let { username ->
+								subversionAuth.password?.let { password ->
+									authenticationManager = BasicAuthenticationManager.newInstance(username, password.toCharArray())
+								}
+							} ?: throw IllegalStateException("Username and Password not given.")
+						}
+					}
+				}
+				single { SimpleSVN(get()) }
+				single {
+					SVNClientManager.newInstance().apply {
+						setAuthenticationManager(get<SVNRepository>().authenticationManager)
+					}
+				}
+				single<Worklist> { createWorklist(get<Map<String, ConfiguredBranch>>()) }
+				single<ObjectMapper> { XmlMapper.builder().addModule(kotlinModule()).build() }
+			}
+		)
+	}.koin
+
+	val configuration: Configuration by koin.inject { parametersOf(arrayOf(*arguments)) }
 	configuration.verify()
 
-	val svnUrl = SVNURL.parseURIDecoded(configuration.general.subversionUrl ?: throw IllegalStateException("Subversion URL not set."))
-	val svnRepository = SVNRepositoryFactory.create(svnUrl)
-	configuration.general.subversionAuth?.let { subversionAuth ->
-		subversionAuth.username?.let { username ->
-			subversionAuth.password?.let { password ->
-				svnRepository.authenticationManager = BasicAuthenticationManager.newInstance(username, password.toCharArray())
-			}
-		} ?: throw IllegalStateException("Username and Password not given.")
-	}
-	val branchDefinitions = configuration.branches.associate { branch -> branch.name to BranchDefinition(*branch.revisionPaths.map { it.revision to it.path }.toTypedArray()) }
-	val repositoryScanner = RepositoryScanner(svnRepository)
-	branchDefinitions.forEach(repositoryScanner::addBranch)
-	val repositoryInformation = repositoryScanner.identifyBranches()
-	val fileFilters = configuration.filters.map(Filter::path).map(::Regex).map { regex -> { file: String -> regex.containsMatchIn(file) } }
-	logger.info("RepositoryInformation: $repositoryInformation")
-
+	val zoneId: ZoneId by koin.inject()
+	val configuredBranches: Map<String, ConfiguredBranch> by koin.inject()
+	val fileFilters = configuration.filters.map(stringToFilter)
+	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
 	val committers = configuration.committers
 		.associate { it.subversionId to PersonIdent(it.name, it.email) }
 		.withDefault { PersonIdent(it, "$it@svn") }
 	val committer = configuration.general.committer?.let { PersonIdent(it.name, it.email) }
-
-	fun findActualRevision(branch: String, revision: Long) =
-		repositoryInformation.brachRevisions[branch]!!.headSet(revision + 1).last()
-
-	val branchRevisionsByTag = configuration.branches.flatMap { branch -> branch.tags.map { it.name to (branch.name to it.revision) } }.toMap()
-
-	fun findActualRevision(tag: String) =
-		branchRevisionsByTag[tag]?.let { findActualRevision(it.first, it.second) }
-
-	fun findBranchByPathAndRevision(path: String, revision: Long) =
-		branchDefinitions.entries.single { entry ->
-			(entry.value.pathAt(revision) == path) || entry.value.pathAt(revision)?.startsWith("$path/") ?: false || (entry.value.pathAt(revision)?.let { path.startsWith("$it/") } ?: false)
-		}.key
-
-	val mergeRevisionsByBranch = configuration.branches.associate { it.name to it.merges.associateBy { it.revision } }
-	val tagRevisionsByBranch = configuration.branches.associate { branch -> branch.name to branch.tags.associateBy { findActualRevision(branch.name, it.revision) } }
-	val fixRevisionsByBranch = configuration.branches.associate { branch -> branch.name to branch.fixes.associateBy { it.revision } }
-	val branchOrigins = configuration.branches.associate { branch -> branch.name to branch.origin }.filterValues { it != null }
-
-	val worklist = Worklist(
-		repositoryInformation.brachRevisions,
-		repositoryInformation.branchCreationPoints.mapValues { entry ->
-			findBranchByPathAndRevision(entry.value.first, entry.value.second) to entry.value.second
-		} + branchOrigins.mapValues {
-			it.value!!.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value!!.branch!! to it.value!!.revision!!)
-		},
-		mergeRevisionsByBranch.mapValues { it.value.mapValues { it.value.tag?.let { branchRevisionsByTag[it]!! } ?: (it.value.branch!! to it.value.revision) } }
-	)
-
+	val worklist: Worklist by koin.inject()
 	val workDirectory = File(configuration.general.targetDirectory ?: throw IllegalStateException("No target directory given."))
-	val simpleSvn = SimpleSVN(svnRepository)
-	val svnClientManager = SVNClientManager.newInstance()
-	svnClientManager.setAuthenticationManager(svnRepository.authenticationManager)
+	val simpleSvn: SimpleSVN by koin.inject()
+	val svnClientManager: SVNClientManager by koin.inject()
+	val svnUrl: SVNURL by koin.inject()
+	val plan = worklist.createPlan()
+		.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
+
 	try {
 		Git.open(workDirectory).also {
 			printTime("cleanup") {
@@ -101,165 +102,107 @@ fun main(vararg arguments: String) {
 		printTime("update") {
 			svnClientManager.updateClient.doCheckout(svnUrl, workDirectory, SVNRevision.create(1), SVNRevision.create(1), SVNDepth.EMPTY, false)
 		}
-		Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch("main").call()
+		val firstBranchName = plan.first().first
+		Git.init().setBare(false).setDirectory(workDirectory).setInitialBranch(firstBranchName).call()
 	}.use { gitRepository ->
 		if (configuration.general.ignoreGlobalGitIgnoreFile != false) {
 			gitRepository.repository.config.setString("core", null, "excludesFile", if (Platform.isWindows()) "NUL" else "/dev/null")
 		}
 		val stateDirectory = File(workDirectory, ".git/sactilgis")
 		stateDirectory.mkdirs()
-		val revisionCommits = readCacheFromStateDir(stateDirectory, gitRepository.repository).toMutableMap()
+		val revisionCommits = gitRepository.readCommitCache().toMutableMap()
 		var currentBranch = gitRepository.repository.branch
 		var currentPath = "/"
 
-		var processedRevisionCount = 0
-		val plan = worklist.createPlan()
+		val periodicGarbageCollection = DelayedPeriodicAction(100) {
+			printTime("gc") {
+				gitRepository.gc().call()
+			}
+		}
+		val alreadyProcessed = plan.count { (branch, revision) -> (revision to branch) in revisionCommits }
+		val progressTimeTracker = ProgressTimeTracker(plan.size, alreadyProcessed)
+		val remainingRevisions = plan
 			.filter { (branch, revision) -> (revision to branch) !in revisionCommits }
 			.also { logger.info("Plan: $it") }
-		val startTime = System.currentTimeMillis()
-		plan.forEachIndexed { index, (branch, revision) ->
+		progressTimeTracker.track(remainingRevisions) { (branch, revision) ->
 			logger.info("Processing $branch at Revision $revision")
 			print("${"%tT.%<tL".format(System.currentTimeMillis())} ")
 			print("(@$revision)")
-			print("(${"%.1f".format(100.0 * index / (plan.size - 1))}%)")
-			print("(eta: ${(System.currentTimeMillis() - startTime).let { elapsedTime -> ((elapsedTime / ((index + 1.0) / plan.size)) - elapsedTime).toLong().toDurationString() }})")
+			print("(${"%.1f".format(progress * 100)}%)")
+			print("(time: ${elapsed.toDurationString()}/${estimated.toDurationString()})")
 			print("($branch)")
+			val configuredBranch = configuredBranches[branch]!!
 			val svnRevision = SVNRevision.create(revision)
 			if (currentBranch != branch) {
-				if (gitRepository.branchDoesNotExist(branch)) {
-					val originalRevision = repositoryInformation.branchCreationPoints[branch]?.second
-					val startPoint = originalRevision
-						?: branchOrigins[branch]?.tag?.let(::findActualRevision)
-						?: branchOrigins[branch]?.let { findActualRevision(it.branch!!, it.revision!!) }
-					if (startPoint != null) {
-							val startBranch = branchOrigins[branch]?.tag?.let { branchRevisionsByTag[it]!!.first }
-								?: branchOrigins[branch]?.branch
-								?: repositoryInformation.branchCreationPoints[branch]?.let { findBranchByPathAndRevision(it.first, it.second) }
-						print("(from $startBranch @ $startPoint)")
-						printTime("create") {
-							gitRepository.checkout().setCreateBranch(true).setName(branch).setStartPoint(revisionCommits[startPoint to startBranch]!!.name).call()
-						}
-					} else {
-						printTime("orphan") {
-							gitRepository.checkout().setName(branch).setOrphan(true).call()
-						}
-					}
-				} else {
-					printTime("checkout") {
-						gitRepository.checkout().setName(branch).call()
-					}
+				gitRepository.switchBranch(branch, configuredBranch, revisionCommits, ::printTime)
+				printTime("revert") {
+					svnClientManager.revert(workDirectory, svnRevision)
 				}
 				currentBranch = branch
-				revert(svnClientManager, workDirectory, svnRevision)
 			}
-			val path = branchDefinitions[branch]!!.pathAt(revision)!!
+			val path = configuredBranch.getPathAt(revision)!!
 			print("($path)")
 			if (path != currentPath) {
-				currentPath = path
 				printTime("switch") {
-					svnClientManager.updateClient.doSwitch(workDirectory, svnUrl.appendPath(path, false), svnRevision, svnRevision, SVNDepth.INFINITY, false, true)
+					svnClientManager.switchBranch(workDirectory, svnUrl, path, svnRevision)
 				}
-				revert(svnClientManager, workDirectory, svnRevision)
+				printTime("revert") {
+					svnClientManager.revert(workDirectory, svnRevision)
+				}
+				currentPath = path
 			} else {
 				printTime("update") {
 					svnClientManager.updateClient.doUpdate(workDirectory, svnRevision, SVNDepth.INFINITY, false, true)
 				}
 			}
-			val filePatterns = printTime("status") {
+			printTime("status") {
 				gitRepository.status().call().let { status ->
-					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.untrackedFolders + status.ignoredNotInIndex
-				}.filterNot { it.startsWith(".svn") }
-					.filterNot { file -> fileFilters.any { it(file) } }
-			}.also { logger.info("Files to update in Git: $it") }
-			filePatterns.takeIf { it.isNotEmpty() }?.let {
-				printTime("add") {
-					gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
-					gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(false).call()
+					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.ignoredNotInIndex
 				}
 			}
+				.filterNot { it.startsWith(".svn") }
+				.filterNot { file -> fileFilters.any { it(file) } }
+				.filterNot { file -> branchFilters[branch]!!.any { it(file) } }
+				.also { logger.info("Files to update in Git: $it") }
+				.takeIf { it.isNotEmpty() }?.let {
+					printTime("add") {
+						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
+						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(false).call()
+					}
+				}
 			printTime("commit") {
 				val logEntry = simpleSvn.getLogEntry(path, revision)!!
-				val commitMessage = (fixRevisionsByBranch[branch]!![revision]?.message?.replaceLineBreaks() ?: logEntry.message) +
+				val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
 						"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 				val commitAuthor = committers.getValue(logEntry.author)
-				mergeRevisionsByBranch[branch]!![revision]?.let { merge ->
-					val commitId: RevCommit = (merge.tag?.let { branchRevisionsByTag[it]!! }
-						?: run { merge.branch!! to merge.revision })
-						.let { (branch, revision) -> branch to findActualRevision(branch, revision) }
-						.also { (branch, revision) -> print("(merge $branch @ $revision)") }
-						.let { (branch, revision) -> revisionCommits[revision to branch]!! }
-					gitRepository.repository.writeMergeHeads(listOf(commitId))
+				configuredBranch.getMergeAt(revision)?.let { merge ->
+					print("(merge ${merge.branch} @ ${merge.revision})")
+					gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
 				}
-				val commit = gitRepository.commit()
-					.setAllowEmpty(true)
-					.setAuthor(PersonIdent(commitAuthor, logEntry.date))
-					.setCommitter((committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date) else it })
-					.setMessage(commitMessage)
-					.setSign(configuration.general.signCommits == true)
-					.call()
+				val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
+				val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
 				revisionCommits[revision to branch] = commit
-				storeCommitInState(stateDirectory, revision, branch, commit)
+				gitRepository.storeCommitInCache(revision, branch, commit)
 			}
-			tagRevisionsByBranch[branch]!![revision]?.let { tag ->
+			configuredBranch.getTagAt(revision)?.let { tag ->
 				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
 				printTime("tag ${tag.name}") {
-					gitRepository.tag()
-						.setObjectId(revisionCommits[revision to branch])
-						.setName(tag.name)
-						.setMessage(tagLogEntry.message)
-						.setTagger(PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date))
-						.setAnnotated(true).setSigned(configuration.general.signCommits == true).call()
+					val tagger = PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId)
+					gitRepository.createTag(revisionCommits[revision to branch]!!, tag.name, tagLogEntry.message, tagger)
 				}
 			}
-			processedRevisionCount++
-			if (processedRevisionCount.rem(100) == 0) {
-				printTime("gc") {
-					gitRepository.gc().call()
-				}
-			}
+			periodicGarbageCollection()
 			println()
 		}
 	}
 }
 
-private fun readCacheFromStateDir(stateDir: File, repository: Repository): Map<Pair<Long, String>, RevCommit> =
-	File(stateDir, "commit-cache.txt").let { file ->
-		if (file.exists()) {
-			file.useLines { lines ->
-				lines.map { it.split(",") }
-					.map { (it[0].toLong() to it[1]) to it[2] }
-					.map { it.first to repository.resolve(it.second)!! }
-					.map { it.first to repository.parseCommit(it.second)!! }
-					.toMap()
-			}
-		} else {
-			mutableMapOf()
-		}
-	}
+private val stringToFilter = { filter: Filter -> filter.path.let(::Regex).let { regex -> { file: String -> regex.containsMatchIn(file) } } }
 
-private fun storeCommitInState(stateDir: File, revision: Long, branch: String, commit: RevCommit) {
-	File(stateDir, "commit-cache.txt").appendText("$revision,$branch,${commit.name}\n")
-}
-
-private fun revert(svnClientManager: SVNClientManager, workDirectory: File, svnRevision: SVNRevision) {
-	printTime("revert") {
-		val statusLogs = mutableListOf<SVNStatus>()
-		svnClientManager.statusClient.doStatus(workDirectory, svnRevision, SVNDepth.INFINITY, false, true, false, false, statusLogs::add, null)
-		statusLogs
-			.filterNot { it.file == File(workDirectory, ".git") }
-			.filter { it.isConflicted || (it.treeConflict != null) || (it.contentsStatus != STATUS_NORMAL) || (it.nodeStatus != STATUS_NORMAL) }
-			.map(SVNStatus::getFile)
-			.onEach(File::deleteRecursively)
-		svnClientManager.wcClient.doRevert(arrayOf(workDirectory), SVNDepth.INFINITY, null)
-	}
-}
-
-private fun Long.toDurationString() = listOf(TimeUnit.DAYS to Int.MAX_VALUE, TimeUnit.HOURS to 24, TimeUnit.MINUTES to 60, TimeUnit.SECONDS to 60)
-	.map { (this / it.first.toMillis(1)) % it.second }
-	.dropWhile { it == 0L }
-	.ifEmpty { listOf(0L) }
-	.let { if (it.size < 2) (listOf(0L) + it) else it }
-	.joinToString(separator = ":") { "%02d".format(it) }
+private fun readConfigurationFiles(xmlMapper: ObjectMapper, vararg arguments: String) =
+	arguments.map(::File)
+		.filter(File::exists)
+		.map { xmlMapper.readValue(it, Configuration::class.java) }
 
 private fun String.replaceLineBreaks() = replace(Regex("\\\\n"), "\n")
 
@@ -273,10 +216,6 @@ private fun <T : Any> printTime(text: String, action: () -> T): T {
 	}
 }
 
-private fun Git.branchDoesNotExist(branch: String) =
-	"refs/heads/$branch" !in branchList().call().map(Ref::getName)
-
-private val xmlMapper = XmlMapper()
 private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {
 	System.setProperty("java.util.logging.SimpleFormatter.format", "%tF %<tT %5\$s%n")
 	addHandler(FileHandler("./sactilgis.log").apply { this.formatter = SimpleFormatter() })

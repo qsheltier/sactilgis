@@ -101,6 +101,22 @@ class ConfigurationTest {
 	}
 
 	@Test
+	fun `merge overwrites timezone`() {
+		val oldConfiguration = Configuration(general = General(timezone = "World/Test"))
+		val newConfiguration = Configuration(general = General(timezone = "World/Secret Lab"))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.timezone, equalTo("World/Secret Lab"))
+	}
+
+	@Test
+	fun `merge does not overwrite timezone when new timezone is null`() {
+		val oldConfiguration = Configuration(general = General(timezone = "World/Test"))
+		val newConfiguration = Configuration(general = General(timezone = null))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.timezone, equalTo("World/Test"))
+	}
+
+	@Test
 	fun `merge overwrites ignore-global-gitignore flag`() {
 		val oldConfiguration = Configuration(general = General(ignoreGlobalGitIgnoreFile = true))
 		val newConfiguration = Configuration(general = General(ignoreGlobalGitIgnoreFile = false))
@@ -117,19 +133,19 @@ class ConfigurationTest {
 	}
 
 	@Test
-	fun `merge overwrites sign-commits flag`() {
-		val oldConfiguration = Configuration(general = General(signCommits = true))
-		val newConfiguration = Configuration(general = General(signCommits = false))
+	fun `merge overwrites last revision`() {
+		val oldConfiguration = Configuration(general = General(lastRevision = 1234))
+		val newConfiguration = Configuration(general = General(lastRevision = 2345))
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.general.signCommits, equalTo(false))
+		assertThat(mergedConfiguration.general.lastRevision, equalTo(2345))
 	}
 
 	@Test
-	fun `merge does not overwrite sign-commits flag when new flag is null`() {
-		val oldConfiguration = Configuration(general = General(signCommits = true))
-		val newConfiguration = Configuration(general = General(signCommits = null))
+	fun `merge does not overwrite last revision if new last revision is null`() {
+		val oldConfiguration = Configuration(general = General(lastRevision = 1234))
+		val newConfiguration = Configuration(general = General(lastRevision = null))
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.general.signCommits, equalTo(true))
+		assertThat(mergedConfiguration.general.lastRevision, equalTo(1234))
 	}
 
 	@Test
@@ -194,7 +210,7 @@ class ConfigurationTest {
 	}
 
 	@Test
-	fun `branches are merged by copying from the new configuration`() {
+	fun `merged configuration contains all branches with unique names`() {
 		val oldConfiguration = Configuration().apply {
 			branches += listOf(
 				Branch().apply { name = "branch1" },
@@ -208,7 +224,26 @@ class ConfigurationTest {
 			)
 		}
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.branches.map(Branch::name), contains("branch3", "branch4"))
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2", "branch3", "branch4"))
+	}
+
+	@Test
+	fun `newer branches definitions replace older branch definitions`() {
+		val oldConfiguration = Configuration().apply {
+			branches += listOf(
+				Branch().apply { name = "branch1" },
+				Branch().apply { name = "branch2" },
+			)
+		}
+		val newConfiguration = Configuration().apply {
+			branches += listOf(
+				Branch().apply { name = "branch1"; origin = Origin("copy") },
+				Branch().apply { name = "branch3" },
+			)
+		}
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2", "branch3"))
+		assertThat(mergedConfiguration.branches.single { it.name == "branch1" }.origin, equalTo(Origin("copy")))
 	}
 
 	@Test
@@ -221,7 +256,7 @@ class ConfigurationTest {
 		}
 		val newConfiguration = Configuration()
 		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
-		assertThat(mergedConfiguration.branches.map(Branch::name), contains("branch1", "branch2"))
+		assertThat(mergedConfiguration.branches.map(Branch::name), containsInAnyOrder("branch1", "branch2"))
 	}
 
 	@Test
@@ -641,6 +676,22 @@ class ConfigurationTest {
 			)
 		}
 		assertThrows<IllegalStateException>(configuration::verify)
+	}
+
+	@Test
+	fun `extension method merges files in correct order`() {
+		val firstConfiguration = Configuration(filters = mutableListOf(Filter("filter1")))
+		val secondConfiguration = Configuration(filters = mutableListOf(Filter("filter2")))
+		val thirdConfiguration = Configuration(filters = mutableListOf(Filter("filter3")))
+		assertThat(
+			listOf(firstConfiguration, secondConfiguration, thirdConfiguration).merge().filters,
+			contains(Filter("filter1"), Filter("filter2"), Filter("filter3"))
+		)
+	}
+
+	@Test
+	fun `extension method throws exception if list of configurations is empty`() {
+		assertThrows<IllegalArgumentException> { emptyList<Configuration>().merge() }
 	}
 
 }

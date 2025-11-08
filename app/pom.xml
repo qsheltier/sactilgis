@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>de.qsheltier</groupId>
 		<artifactId>sactilgis</artifactId>
-		<version>2</version>
+		<version>3</version>
 	</parent>
 
 	<artifactId>app</artifactId>
@@ -17,12 +17,18 @@
 		<dependency>
 			<groupId>org.eclipse.jgit</groupId>
 			<artifactId>org.eclipse.jgit</artifactId>
-			<version>6.9.0.202403050737-r</version>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<groupId>tools.jackson.dataformat</groupId>
 			<artifactId>jackson-dataformat-xml</artifactId>
-			<version>2.17.0</version>
+		</dependency>
+		<dependency>
+			<groupId>tools.jackson.module</groupId>
+			<artifactId>jackson-module-kotlin</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.java.dev.jna</groupId>
+			<artifactId>jna-platform</artifactId>
 		</dependency>
 	</dependencies>
 

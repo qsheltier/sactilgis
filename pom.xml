@@ -3,11 +3,11 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.qsheltier</groupId>
 	<artifactId>sactilgis</artifactId>
-	<version>2</version>
+	<version>3</version>
 	<packaging>pom</packaging>
 
 	<properties>
-		<kotlin.version>1.9.23</kotlin.version>
+		<kotlin.version>2.2.21</kotlin.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
@@ -24,16 +24,30 @@
 				<version>${kotlin.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>org.junit.jupiter</groupId>
-				<artifactId>junit-jupiter</artifactId>
-				<version>5.8.1</version>
-				<scope>test</scope>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>6.0.0</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.hamcrest</groupId>
 				<artifactId>hamcrest</artifactId>
 				<version>2.2</version>
 				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito.kotlin</groupId>
+				<artifactId>mockito-kotlin</artifactId>
+				<version>6.1.0</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.insert-koin</groupId>
+				<artifactId>koin-bom</artifactId>
+				<version>4.1.1</version>
+				<type>pom</type>
+				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.tmatesoft.svnkit</groupId>
@@ -51,14 +65,29 @@
 				</exclusions>
 			</dependency>
 			<dependency>
+				<groupId>org.eclipse.jgit</groupId>
+				<artifactId>org.eclipse.jgit</artifactId>
+				<version>7.4.0.202509020913-r</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.dataformat</groupId>
+				<artifactId>jackson-dataformat-xml</artifactId>
+				<version>3.0.1</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.module</groupId>
+				<artifactId>jackson-module-kotlin</artifactId>
+				<version>3.0.1</version>
+			</dependency>
+			<dependency>
 				<groupId>net.java.dev.jna</groupId>
 				<artifactId>jna-platform</artifactId>
-				<version>5.15.0</version>
+				<version>5.18.1</version>
 			</dependency>
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-nop</artifactId>
-				<version>1.7.32</version>
+				<version>1.7.36</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -69,12 +98,21 @@
 			<artifactId>kotlin-stdlib</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>io.insert-koin</groupId>
+			<artifactId>koin-core-jvm</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito.kotlin</groupId>
+			<artifactId>mockito-kotlin</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -118,6 +156,9 @@
 					<groupId>org.jetbrains.kotlin</groupId>
 					<artifactId>kotlin-maven-plugin</artifactId>
 					<version>${kotlin.version}</version>
+					<configuration>
+						<jvmTarget>17</jvmTarget>
+					</configuration>
 				</plugin>
 			</plugins>
 		</pluginManagement>
