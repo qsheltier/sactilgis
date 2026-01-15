@@ -73,6 +73,10 @@ fun main(vararg arguments: String) {
 	val configuration: Configuration by koin.inject { parametersOf(arrayOf(*arguments)) }
 	configuration.verify()
 
+	if ("--quit-after-verification" in arguments) {
+		return
+	}
+
 	val zoneId: ZoneId by koin.inject()
 	val configuredBranches: Map<String, ConfiguredBranch> by koin.inject()
 	val fileFilters = configuration.filters.map(stringToFilter)

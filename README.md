@@ -26,6 +26,18 @@ After that, a nice, big JAR file will have been dropped in `app/target/`.
 
 And already your conversion should be underway!
 
+
+## Command-Line Parameters
+
+The syntax for starting sactilgis is:
+
+    sactilgis [ --quit-after-verification ] <configuration file> [ <configuration file> [ … ] ]
+
+If `--quit-after-verification` is specified on the command line, sactilgis will load all XML files, verify that all constraints are met, and then exit.
+
+Multiple configuration files can be specified. See [Merging Configurations](#merging-configurations) for details.
+
+
 ## Configuration
 
 The configuration is done using one or more XML files (see [below](#merging-configurations)). Under the top level `configuration` tag, there are several sections that are used to control all of sactilgis’s behaviour: `general`, `committers`, `branches`, and `filters`.
