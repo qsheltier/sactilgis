@@ -88,6 +88,9 @@ ignore-global-gitignore-file
 last-revision
 : If set, the Subversion repository will only be processed up to this revision.
 
+skip-empty-commits
+: If set to `true`, a revision that does not result in changes to any files will not create a commit in Git, unless it is referenced as the origin of a branch, a tag, as a source or target revision for a merge, or for a commit message fix-up. 
+
 ### The `committers` Section
 
 Author data stored in Subversion boils down to a single username; no full name or email address in sight anywhere. As such, the usernames need to be translated into full author details, and that is the purpose of this section.
@@ -255,6 +258,13 @@ A filter is a regex string that will be matched against the complete name of eac
 An arbitrary amount of filters can be added. Some care should be taken to make filters as unambiguous as possible; i.e. `.bak` would prevent ever-present backup files from being committed, but it would also block a file named `material/bakelite.png`.
 
 
+## Changing Configurations
+
+Changing certain configuration values can make configurations be impossible to process.
+
+If `skip-empty-commits` has been set to `true`, and an earlier commit was skipped because it was empty, and then later a branch is defined that starts at that commit, the branch cannot be created. It is thus advisable to never change `skip-empty-commits` after the initial sactilgis run, unless you know that your repository can handle it.
+
+
 ## Merging Configurations
 
 In order to be able to e.g. define a common mapping for committers (because in a corporate environment you have many repositories, but they are all being worked on by the same people) it is possible to specify multiple XML files on the command line. In general, the values from later files are used to override values from earlier files. The following exceptions apply:
@@ -277,5 +287,4 @@ This mechanism makes it possible to define a number of settings that can be appl
 
 There are several things that I still want to implement:
 
-* Handling of empty commits: often, when a new branch is created from an existing branch, the initial commit only contains a copy within Subversion, i.e. no changes are actually being done. Empty commits in Git are possible (and sactilgis already creates them) but they are kind of ugly and (mostly) pointless. I want to evaluate if simply skipping these commits is acceptable; it does also throw away the commit message which may or may not be important.
 * Commit rewriting: sometimes, commits are a real mess. Initially this project was aimed at creating reasonable Git versions of Subversion project repositories, but why stop there? When commits can be surgically altered during conversion, it might just be possible to craft the perfect Git repository, even if not 100% historically accurate. It might come in handy, you never know!

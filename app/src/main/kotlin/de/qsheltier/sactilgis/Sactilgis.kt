@@ -22,6 +22,7 @@ import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
+import org.eclipse.jgit.lib.ObjectId.zeroId
 import org.eclipse.jgit.lib.PersonIdent
 import org.koin.core.context.startKoin
 import org.koin.core.parameter.parametersOf
@@ -79,6 +80,13 @@ fun main(vararg arguments: String) {
 
 	val zoneId: ZoneId by koin.inject()
 	val configuredBranches: Map<String, ConfiguredBranch> by koin.inject()
+	val isCommitUnused = { revision: Long ->
+		configuredBranches.values.none { branch -> branch.origin?.revision == revision } &&
+				configuredBranches.values.none { branch -> branch.tags.any { tag -> tag.key == revision } } &&
+				configuredBranches.values.none { branch -> revision in branch.fixes } &&
+				configuredBranches.values.none { branch -> revision in branch.merges } &&
+				configuredBranches.values.none { branch -> branch.merges.values.any { merge -> merge.revision == revision } }
+	}
 	val fileFilters = configuration.filters.map(stringToFilter)
 	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
 	val committers = configuration.committers
@@ -159,7 +167,7 @@ fun main(vararg arguments: String) {
 					svnClientManager.updateClient.doUpdate(workDirectory, svnRevision, SVNDepth.INFINITY, false, true)
 				}
 			}
-			printTime("status") {
+			val changes = printTime("status") {
 				gitRepository.status().call().let { status ->
 					status.added + status.changed + status.modified + status.missing + status.removed + status.untracked + status.ignoredNotInIndex
 				}
@@ -168,34 +176,39 @@ fun main(vararg arguments: String) {
 				.filterNot { file -> fileFilters.any { it(file) } }
 				.filterNot { file -> branchFilters[branch]!!.any { it(file) } }
 				.also { logger.info("Files to update in Git: $it") }
-				.takeIf { it.isNotEmpty() }?.let {
-					printTime("add") {
-						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(true).call()
-						gitRepository.add().apply { it.forEach(this::addFilepattern) }.setUpdate(false).call()
+			if (changes.isNotEmpty()) {
+				printTime("add") {
+					gitRepository.add().apply { changes.forEach(this::addFilepattern) }.setUpdate(true).call()
+					gitRepository.add().apply { changes.forEach(this::addFilepattern) }.setUpdate(false).call()
+				}
+			}
+			if ((configuration.general.skipEmptyCommits == true) && changes.isEmpty() && isCommitUnused(revision)) {
+				print("(skipping)")
+				gitRepository.storeCommitInCache(revision, branch, zeroId())
+			} else {
+				printTime("commit") {
+					val logEntry = simpleSvn.getLogEntry(path, revision)!!
+					val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
+							"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
+					val commitAuthor = committers.getValue(logEntry.author)
+					configuredBranch.getMergeAt(revision)?.let { merge ->
+						print("(merge ${merge.branch} @ ${merge.revision})")
+						gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
+					}
+					val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
+					val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
+					revisionCommits[revision to branch] = commit
+					gitRepository.storeCommitInCache(revision, branch, commit)
+				}
+				configuredBranch.getTagAt(revision)?.let { tag ->
+					val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
+					printTime("tag ${tag.name}") {
+						val tagger = PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId)
+						gitRepository.createTag(revisionCommits[revision to branch]!!, tag.name, tagLogEntry.message, tagger)
 					}
 				}
-			printTime("commit") {
-				val logEntry = simpleSvn.getLogEntry(path, revision)!!
-				val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
-						"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
-				val commitAuthor = committers.getValue(logEntry.author)
-				configuredBranch.getMergeAt(revision)?.let { merge ->
-					print("(merge ${merge.branch} @ ${merge.revision})")
-					gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
-				}
-				val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
-				val commit = gitRepository.createCommit(PersonIdent(commitAuthor, logEntry.date.toInstant(), zoneId), committerAndTime, commitMessage)
-				revisionCommits[revision to branch] = commit
-				gitRepository.storeCommitInCache(revision, branch, commit)
+				periodicGarbageCollection()
 			}
-			configuredBranch.getTagAt(revision)?.let { tag ->
-				val tagLogEntry = simpleSvn.getLogEntry("/", tag.messageRevision)!!
-				printTime("tag ${tag.name}") {
-					val tagger = PersonIdent(committer ?: committers.getValue(tagLogEntry.author), tagLogEntry.date.toInstant(), zoneId)
-					gitRepository.createTag(revisionCommits[revision to branch]!!, tag.name, tagLogEntry.message, tagger)
-				}
-			}
-			periodicGarbageCollection()
 			println()
 		}
 	}
