@@ -31,6 +31,7 @@ data class Configuration(
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
 		@param:JsonProperty("last-revision")
 		var lastRevision: Long? = null,
+		@param:JsonProperty("skip-empty-commits")
 		var skipEmptyCommits: Boolean? = null,
 	)
 

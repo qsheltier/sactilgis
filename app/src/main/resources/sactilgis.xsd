@@ -75,6 +75,14 @@
 					</xs:documentation>
 				</xs:annotation>
 			</xs:element>
+			<xs:element name="skip-empty-commits" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>
+						If true, revisions that do not change any content and are not referenced by
+						branches, tags, fixes, or merges, will not result in a Git commit being created.
+					</xs:documentation>
+				</xs:annotation>
+			</xs:element>
 		</xs:all>
 	</xs:complexType>
 

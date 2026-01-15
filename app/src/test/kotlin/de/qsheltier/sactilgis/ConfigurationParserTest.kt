@@ -131,6 +131,19 @@ class ConfigurationParserTest {
 	}
 
 	@Test
+	fun `skip-empty-commits flag can be parsed`() {
+		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
+			<configuration>
+				<general>
+					<skip-empty-commits>true</skip-empty-commits>
+				</general>
+			</configuration>
+		""", Configuration::class.java
+		)
+		assertThat(configuration.general.skipEmptyCommits, equalTo(true))
+	}
+
+	@Test
 	fun `complete branch can be parsed`() {
 		val configuration = xmlMapper.readValue("""<?xml version="1.0" encoding="utf-8"?>
 			<configuration>
