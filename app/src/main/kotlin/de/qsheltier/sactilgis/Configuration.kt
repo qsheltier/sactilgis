@@ -31,6 +31,7 @@ data class Configuration(
 		var ignoreGlobalGitIgnoreFile: Boolean? = null,
 		@param:JsonProperty("last-revision")
 		var lastRevision: Long? = null,
+		var skipEmptyCommits: Boolean? = null,
 	)
 
 	data class SubversionAuth(
@@ -111,6 +112,7 @@ data class Configuration(
 		mergedConfiguration.general.timezone = configuration.general.timezone ?: general.timezone
 		mergedConfiguration.general.ignoreGlobalGitIgnoreFile = configuration.general.ignoreGlobalGitIgnoreFile ?: general.ignoreGlobalGitIgnoreFile
 		mergedConfiguration.general.lastRevision = configuration.general.lastRevision ?: general.lastRevision
+		mergedConfiguration.general.skipEmptyCommits = configuration.general.skipEmptyCommits ?: general.skipEmptyCommits
 		mergedConfiguration.committers += committers.filterNot { it.subversionId in configuration.committers.map(Committer::subversionId) } + configuration.committers
 		mergedConfiguration.branches += branches.filterNot { oldBranch ->
 			configuration.branches.any { newBranch -> newBranch.name == oldBranch.name }

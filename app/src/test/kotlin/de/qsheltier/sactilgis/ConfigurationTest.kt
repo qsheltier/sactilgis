@@ -149,6 +149,22 @@ class ConfigurationTest {
 	}
 
 	@Test
+	fun `merge overwrites skip-empty-commits flag`() {
+		val oldConfiguration = Configuration(general = General(skipEmptyCommits = true))
+		val newConfiguration = Configuration(general = General(skipEmptyCommits = false))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.skipEmptyCommits, equalTo(false))
+	}
+
+	@Test
+	fun `merge does not overwrite skip-empty-commits flag if new flag is null`() {
+		val oldConfiguration = Configuration(general = General(skipEmptyCommits = true))
+		val newConfiguration = Configuration(general = General(skipEmptyCommits = null))
+		val mergedConfiguration = oldConfiguration.merge(newConfiguration)
+		assertThat(mergedConfiguration.general.skipEmptyCommits, equalTo(true))
+	}
+
+	@Test
 	fun `merge concats the committers`() {
 		val oldConfiguration = Configuration().apply {
 			committers += listOf(
