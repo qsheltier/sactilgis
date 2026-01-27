@@ -144,7 +144,7 @@ private fun determineMergesIntoThisBranch(configurationBranch: Configuration.Bra
 			}
 		}
 	} else {
-		val revision = scannedBranches[merge.branch!!]!!.sameOrNextSmaller(merge.revision!!)
+		val revision = scannedBranches[merge.branch!!]!!.sameOrNextSmaller(merge.commit ?: merge.revision!!)
 		merge.revision to BranchMerge(merge.branch!!, revision)
 	}
 }

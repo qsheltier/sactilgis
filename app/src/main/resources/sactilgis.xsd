@@ -289,13 +289,22 @@
 						The source of the merge can be either a branch or a tag.
 					</xs:documentation>
 				</xs:annotation>
-				<xs:element name="branch" type="xs:string">
-					<xs:annotation>
-						<xs:documentation>
-							The name of a Git branch whose last commit will be merged into this branch.
-						</xs:documentation>
-					</xs:annotation>
-				</xs:element>
+				<xs:sequence>
+					<xs:element name="branch" type="xs:string">
+						<xs:annotation>
+							<xs:documentation>
+								The name of a Git branch whose last commit will be merged into this branch.
+							</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="commit" type="xs:integer" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>
+								The revision of the commit merged into this branch.
+							</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
 				<xs:element name="tag" type="xs:string">
 					<xs:annotation>
 						<xs:documentation>

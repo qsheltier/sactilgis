@@ -77,6 +77,7 @@ data class Configuration(
 		data class Merge(
 			var revision: Long = 0,
 			var branch: String? = null,
+			var commit: Long? = null,
 			var tag: String? = null
 		)
 

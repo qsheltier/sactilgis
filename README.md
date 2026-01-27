@@ -144,6 +144,11 @@ Each branch has a number of features; a name, an optional origin, a list of revi
 		<merge>
 			<revision>267</revision>
 			<branch>new-feature</branch>
+			<commit>231</commit>
+		</merge>
+		<merge>
+			<revision>491</revision>
+			<branch>new-feature</branch>
 		</merge>
 	</merges>
 	<tags>
@@ -202,15 +207,18 @@ A merge defines a point where two branches are joined. This information cannot r
 
 Merges defined here will be shown as merges in Git but there will be no actual merging performed at any time. The contents of the repository at the resulting commit will be exactly like the content of the Subversion repository at the given revision; the commit in Git, however, will have two parents.
 
-The commit that will be chosen as the second parent of the commit is the latest revision that belongs to the specified branch.
+The commit that will be chosen as the second parent of the commit is the latest revision that belongs to the specified branch, unless `commit` is given and specifies another revision.
 
-It is also possible to merge tags; only one of `branch` and `tag` should be specified.
+It is also possible to merge tags; only one of `branch` (and optionally `commit`) and `tag` should be specified.
 
 revision
 : The revision at which the branch should be recorded.
 
 branch
 : The branch that should be merged into this branch. Obviously, this branch needs to be defined in this configuration file as well.
+
+commit
+: The commit of the branch that should be merged.
 
 tag
 : The tag that should be merged into this branch.

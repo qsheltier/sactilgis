@@ -305,7 +305,7 @@ class ConfigurationTest {
 					name = "feature-2"
 					origin = Origin(tag = "tag-feature")
 					revisionPaths.add(RevisionPath().apply { revision = 8; path = "/branches/feature-2" })
-					merges.add(Merge().apply { revision = 9; tag = "tag-feature" })
+					merges.add(Merge().apply { revision = 9; commit = 6; tag = "tag-feature" })
 					fixes.add(Fix().apply { revision = 12; message = "New message" })
 				}
 			)

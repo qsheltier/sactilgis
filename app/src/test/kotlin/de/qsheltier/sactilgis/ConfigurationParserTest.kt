@@ -165,6 +165,7 @@ class ConfigurationParserTest {
 							<merge>
 								<revision>3456</revision>
 								<branch>merge-branch</branch>
+								<commit>4567</commit>
 								<tag>merge-tag</tag>
 							</merge>
 						</merges>
@@ -192,7 +193,7 @@ class ConfigurationParserTest {
 			Branch("test-branch",
 				Origin("origin-tag", "origin-branch", 1234),
 				mutableListOf(RevisionPath(2345, "/path/to/test")),
-				mutableListOf(Merge(3456, "merge-branch", "merge-tag")),
+				mutableListOf(Merge(3456, "merge-branch", 4567, "merge-tag")),
 				mutableListOf(Tag(4567, "test-tag", 5678)),
 				mutableListOf(Fix(6789, "Fixed message")),
 				mutableListOf(Filter("foo"))
