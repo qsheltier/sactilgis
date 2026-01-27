@@ -62,7 +62,7 @@ fun configureBranches(configuration: Configuration, repositoryScanner: Repositor
  * changes in the Subversion repository
  * @param [fixes] Commit message fixes for this branch
  */
-class ConfiguredBranch(val name: String, val revisions: SortedSet<Long>, val origin: BranchOrigin? = null, val tags: Map<Long, BranchTag> = emptyMap(), val merges: Map<Long, BranchMerge> = emptyMap(), val revisionPaths: SortedMap<Long, String> = TreeMap(), val fixes: Map<Long, BranchFix> = emptyMap()) {
+class ConfiguredBranch(val name: String, val revisions: SortedSet<Long>, val origin: BranchOrigin? = null, val tags: Map<Long, BranchTag> = emptyMap(), val merges: Map<Long, Collection<BranchMerge>> = emptyMap(), val revisionPaths: SortedMap<Long, String> = TreeMap(), val fixes: Map<Long, BranchFix> = emptyMap()) {
 
 	/**
 	 * Returns the [tag][BranchTag] at the given [revision].
@@ -73,12 +73,12 @@ class ConfiguredBranch(val name: String, val revisions: SortedSet<Long>, val ori
 	fun getTagAt(revision: Long) = tags[revision]
 
 	/**
-	 * Returs the [merge][BranchMerge] at the given [revision].
+	 * Returs the [merges][BranchMerge] at the given [revision].
 	 *
-	 * @param [revision] The revision for which to return the [merge][BranchMerge]
-	 * @return The [merge][BranchMerge] at [revision], or `null` if there is none
+	 * @param [revision] The revision for which to return the [merges][BranchMerge]
+	 * @return The [merges][BranchMerge] at [revision]
 	 */
-	fun getMergeAt(revision: Long) = merges[revision]
+	fun getMergesAt(revision: Long) = merges[revision]
 
 	/**
 	 * Returns the [fix][BranchFix] at the given [revision].
@@ -135,19 +135,23 @@ data class BranchFix(val message: String)
 
 private fun SortedSet<Long>.sameOrNextSmaller(n: Long) = headSet(n + 1).last()
 
-private fun determineMergesIntoThisBranch(configurationBranch: Configuration.Branch, configuration: Configuration, scannedBranches: Map<String, SortedSet<Long>>): Map<Long, BranchMerge> = configurationBranch.merges.associate { merge ->
-	if (merge.tag != null) {
-		configuration.getTag(merge.tag!!).let { tag ->
-			configuration.getBranchForTag(merge.tag!!).let { taggedBranch ->
-				val revision = scannedBranches[taggedBranch.name]!!.sameOrNextSmaller(tag.revision)
-				merge.revision to BranchMerge(taggedBranch.name, revision)
+private fun determineMergesIntoThisBranch(configurationBranch: Configuration.Branch, configuration: Configuration, scannedBranches: Map<String, SortedSet<Long>>): Map<Long, Collection<BranchMerge>> =
+	configurationBranch.merges.groupBy { merge -> merge.revision }
+		.mapValues { (_, merges) ->
+			merges.map { merge ->
+				if (merge.tag != null) {
+					configuration.getTag(merge.tag!!).let { tag ->
+						configuration.getBranchForTag(merge.tag!!).let { taggedBranch ->
+							val revision = scannedBranches[taggedBranch.name]!!.sameOrNextSmaller(tag.revision)
+							BranchMerge(taggedBranch.name, revision)
+						}
+					}
+				} else {
+					val revision = scannedBranches[merge.branch!!]!!.sameOrNextSmaller(merge.commit ?: merge.revision)
+					BranchMerge(merge.branch!!, revision)
+				}
 			}
 		}
-	} else {
-		val revision = scannedBranches[merge.branch!!]!!.sameOrNextSmaller(merge.commit ?: merge.revision!!)
-		merge.revision to BranchMerge(merge.branch!!, revision)
-	}
-}
 
 private fun determineBranchOrigin(configurationBranch: Configuration.Branch, configuration: Configuration, scannedBranches: Map<String, SortedSet<Long>>, repositoryInformation: RepositoryInformation, branch: String): BranchOrigin? {
 	return configurationBranch.origin?.let { origin ->

@@ -164,5 +164,10 @@ class WorklistTest {
 
 }
 
-private fun merge(vararg merges: Pair<Pair<Long, String>, Long>) =
-	merges.associate { it.first.first to BranchMerge(it.first.second, it.second) }
+private fun merge(vararg merges: Pair<Pair<Long, String>, Long>): Map<Long, Collection<BranchMerge>> =
+	merges.groupBy { it.first.first }
+		.mapValues { (_, revisionBranchCommits) ->
+			revisionBranchCommits.map { revisionBranchCommit ->
+				BranchMerge(revisionBranchCommit.first.second, revisionBranchCommit.second)
+			}
+		}

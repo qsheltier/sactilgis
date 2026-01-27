@@ -4,6 +4,7 @@ import de.qsheltier.utils.svn.RepositoryInformation
 import de.qsheltier.utils.svn.RepositoryScanner
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
@@ -16,7 +17,7 @@ class ConfiguredBranchesTest {
 
 	@Test
 	fun `configured branches contain correct revisions`() {
-		assertThat(configuredBranches["main"]!!.revisions, contains(1L, 6L, 9L, 10L, 12L, 13L))
+		assertThat(configuredBranches["main"]!!.revisions, contains(1L, 6L, 9L, 10L, 12L))
 		assertThat(configuredBranches["next"]!!.revisions, contains(2L, 3L, 4L, 7L, 8L))
 		assertThat(configuredBranches["three"]!!.revisions, contains(5L, 11L))
 	}
@@ -41,15 +42,14 @@ class ConfiguredBranchesTest {
 
 	@Test
 	fun `configured branches have merges at the correct revisions`() {
-		assertThat(configuredBranches["main"]!!.getMergeAt(6), equalTo(BranchMerge("next", 4)))
-		assertThat(configuredBranches["next"]!!.getMergeAt(7), equalTo(BranchMerge("three", 5)))
-		assertThat(configuredBranches["main"]!!.getMergeAt(12), equalTo(BranchMerge("three", 5)))
-		assertThat(configuredBranches["main"]!!.getMergeAt(13), equalTo(BranchMerge("three", 11)))
+		assertThat(configuredBranches["main"]!!.getMergesAt(6), contains(BranchMerge("next", 4)))
+		assertThat(configuredBranches["next"]!!.getMergesAt(7), contains(BranchMerge("three", 5)))
+		assertThat(configuredBranches["main"]!!.getMergesAt(12), containsInAnyOrder(BranchMerge("three", 5), BranchMerge("three", 11)))
 	}
 
 	@Test
 	fun `configured branches have merges only at the correct revisions`() {
-		testPropertyIsNullAtAllRevisionsWithExceptions(ConfiguredBranch::getMergeAt, mapOf("main" to setOf(6L, 12L, 13L), "next" to setOf(7L), "three" to emptySet()))
+		testPropertyIsNullAtAllRevisionsWithExceptions(ConfiguredBranch::getMergesAt, mapOf("main" to setOf(6L, 12L, 13L), "next" to setOf(7L), "three" to emptySet()))
 	}
 
 	@Test
@@ -82,7 +82,7 @@ class ConfiguredBranchesTest {
 				tags += Configuration.Branch.Tag(2, "v1", 2)
 				merges += Configuration.Branch.Merge(6, tag = "v2")
 				merges += Configuration.Branch.Merge(12, branch = "three", commit = 9)
-				merges += Configuration.Branch.Merge(13, branch = "three", commit = 11)
+				merges += Configuration.Branch.Merge(12, branch = "three", commit = 11)
 				fixes += Configuration.Branch.Fix(6, "fix main")
 			}
 			branches += Configuration.Branch("next").apply {
@@ -98,7 +98,7 @@ class ConfiguredBranchesTest {
 		val repositoryScanner = mock<RepositoryScanner>()
 		whenever(repositoryScanner.identifyBranches(any())).thenReturn(RepositoryInformation(13,
 			mapOf(
-				"main" to sortedSetOf(1, 6, 9, 10, 12, 13), "next" to sortedSetOf(2, 3, 4, 7, 8), "three" to sortedSetOf(5, 11),
+				"main" to sortedSetOf(1, 6, 9, 10, 12), "next" to sortedSetOf(2, 3, 4, 7, 8), "three" to sortedSetOf(5, 11),
 			), mapOf(
 				"next" to ("/main" to 1)
 			)))

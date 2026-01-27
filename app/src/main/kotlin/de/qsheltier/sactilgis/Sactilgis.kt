@@ -85,7 +85,7 @@ fun main(vararg arguments: String) {
 				configuredBranches.values.none { branch -> branch.tags.any { tag -> tag.key == revision } } &&
 				configuredBranches.values.none { branch -> revision in branch.fixes } &&
 				configuredBranches.values.none { branch -> revision in branch.merges } &&
-				configuredBranches.values.none { branch -> branch.merges.values.any { merge -> merge.revision == revision } }
+				configuredBranches.values.none { branch -> branch.merges.values.any { merges -> merges.any { merge -> merge.revision == revision } } }
 	}
 	val fileFilters = configuration.filters.map(stringToFilter)
 	val branchFilters = configuration.branches.associate { it.name to it.filters.map(stringToFilter) }
@@ -191,7 +191,7 @@ fun main(vararg arguments: String) {
 					val commitMessage = (configuredBranch.getFixAt(revision)?.message?.replaceLineBreaks() ?: logEntry.message) +
 							"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 					val commitAuthor = committers.getValue(logEntry.author)
-					configuredBranch.getMergeAt(revision)?.let { merge ->
+					configuredBranch.getMergesAt(revision)?.forEach { merge ->
 						print("(merge ${merge.branch} @ ${merge.revision})")
 						gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
 					}

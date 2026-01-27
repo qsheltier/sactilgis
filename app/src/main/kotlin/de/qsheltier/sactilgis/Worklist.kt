@@ -2,7 +2,7 @@ package de.qsheltier.sactilgis
 
 import java.util.SortedSet
 
-class Worklist(private val branchRevisions: Map<String, SortedSet<Long>> = emptyMap(), private val branchCreationPoints: Map<String, Pair<String, Long>> = emptyMap(), private val branchMergePoints: Map<String, Map<Long, Pair<String, Long>>> = emptyMap()) {
+class Worklist(private val branchRevisions: Map<String, SortedSet<Long>> = emptyMap(), private val branchCreationPoints: Map<String, Pair<String, Long>> = emptyMap(), private val branchMergePoints: Map<String, Map<Long, Collection<Pair<String, Long>>>> = emptyMap()) {
 
 	fun createPlan(): List<Pair<String, Long>> {
 		val nodes = mutableMapOf<Pair<String, Long>, MutableList<Pair<String, Long>>>()
@@ -23,9 +23,11 @@ class Worklist(private val branchRevisions: Map<String, SortedSet<Long>> = empty
 			nodes.getOrPut(newBranch to firstRevisionOfNewBranch) { mutableListOf() } += oldBranch to actualRevisionInOldBranch
 		}
 		branchMergePoints.forEach { (targetBranch, merges) ->
-			merges.forEach { mergeRevision, (branchToMerge, revisionToMerge) ->
-				val actualRevisionInBranchToMerge = branchRevisions[branchToMerge]!!.headSet(revisionToMerge + 1).last()
-				nodes.getOrPut(targetBranch to mergeRevision) { mutableListOf() } += branchToMerge to actualRevisionInBranchToMerge
+			merges.forEach { (mergeRevision, branchesAndRevisionsToMerge) ->
+				branchesAndRevisionsToMerge.forEach { (branchToMerge, revisionToMerge) ->
+					val actualRevisionInBranchToMerge = branchRevisions[branchToMerge]!!.headSet(revisionToMerge + 1).last()
+					nodes.getOrPut(targetBranch to mergeRevision) { mutableListOf() } += branchToMerge to actualRevisionInBranchToMerge
+				}
 			}
 		}
 		return depthFirstSort(nodes)
@@ -71,5 +73,5 @@ fun createWorklist(configuredBranches: Map<String, ConfiguredBranch>) =
 			.filter { (_, origin) -> origin != null }
 			.associate { (name, origin) -> name to (origin!!.branchName to origin.revision) },
 		configuredBranches
-			.map { (name, branch) -> name to branch.merges.mapValues { it.value.branch to it.value.revision }.toMap() }
+			.map { (name, branch) -> name to branch.merges.mapValues { (_, merges) -> merges.map { it.branch to it.revision } }.toMap() }
 			.toMap())
