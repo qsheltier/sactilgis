@@ -9,6 +9,7 @@ import de.qsheltier.sactilgis.helper.revert
 import de.qsheltier.sactilgis.helper.storeCommitInCache
 import de.qsheltier.sactilgis.helper.switchBranch
 import de.qsheltier.utils.action.DelayedPeriodicAction
+import de.qsheltier.utils.print.Printer
 import de.qsheltier.utils.svn.RepositoryScanner
 import de.qsheltier.utils.svn.SimpleSVN
 import de.qsheltier.utils.time.ProgressTimeTracker
@@ -20,6 +21,7 @@ import java.util.TimeZone
 import java.util.logging.FileHandler
 import java.util.logging.Logger
 import java.util.logging.SimpleFormatter
+import kotlin.time.ExperimentalTime
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.errors.RepositoryNotFoundException
 import org.eclipse.jgit.lib.ObjectId.zeroId
@@ -38,6 +40,7 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.dataformat.xml.XmlMapper
 import tools.jackson.module.kotlin.kotlinModule
 
+@ExperimentalTime
 fun main(vararg arguments: String) {
 
 	val koin = startKoin {
@@ -100,6 +103,7 @@ fun main(vararg arguments: String) {
 	val svnUrl: SVNURL by koin.inject()
 	val plan = worklist.createPlan()
 		.filter { (_, revision) -> revision <= (configuration.general.lastRevision ?: revision) }
+	val printTime = Printer()
 
 	try {
 		Git.open(workDirectory).also {
@@ -146,7 +150,7 @@ fun main(vararg arguments: String) {
 			val configuredBranch = configuredBranches[branch]!!
 			val svnRevision = SVNRevision.create(revision)
 			if (currentBranch != branch) {
-				gitRepository.switchBranch(branch, configuredBranch, revisionCommits, ::printTime)
+				gitRepository.switchBranch(branch, configuredBranch, revisionCommits, printTime)
 				printTime("revert") {
 					svnClientManager.revert(workDirectory, svnRevision)
 				}
@@ -192,7 +196,7 @@ fun main(vararg arguments: String) {
 							"\n\nSubversion-Original-Commit: $svnUrl$path@$revision\nSubversion-Original-Author: ${logEntry.author}"
 					val commitAuthor = committers.getValue(logEntry.author)
 					configuredBranch.getMergesAt(revision)?.forEach { merge ->
-						print("(merge ${merge.branch} @ ${merge.revision})")
+						prepend("merge ${merge.branch} @ ${merge.revision}")
 						gitRepository.repository.writeMergeHeads(listOf(revisionCommits[merge.revision to merge.branch]))
 					}
 					val committerAndTime = (committer ?: commitAuthor).let { if (configuration.general.useCommitDateFromEntry != false) PersonIdent(it, logEntry.date.toInstant(), zoneId) else it }
@@ -222,16 +226,6 @@ private fun readConfigurationFiles(xmlMapper: ObjectMapper, vararg arguments: St
 		.map { xmlMapper.readValue(it, Configuration::class.java) }
 
 private fun String.replaceLineBreaks() = replace(Regex("\\\\n"), "\n")
-
-private fun <T : Any> printTime(text: String, action: () -> T): T {
-	val timeBefore = System.currentTimeMillis()
-	try {
-		return action()
-	} finally {
-		val timeAfter = System.currentTimeMillis()
-		print("($text: ${(timeAfter - timeBefore) / 1000.0}s)")
-	}
-}
 
 private val logger = Logger.getLogger("de.qsheltier.sactilgis.Sactilgis").apply {
 	System.setProperty("java.util.logging.SimpleFormatter.format", "%tF %<tT %5\$s%n")
